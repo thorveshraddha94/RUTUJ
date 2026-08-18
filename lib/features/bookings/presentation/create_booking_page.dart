@@ -53,8 +53,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
 
   // Section 5: Reminder & Notification Setup
   String _reminderDuration = '2 hours';
-  bool _notifyPush = true;
-  bool _notifySms = true;
   bool _notifyClientDriverDetails = true;
 
   bool _isSubmitting = false;
@@ -161,8 +159,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
         'is_vip': _isVip,
         'special_assistance': _specialAssistanceController.text.trim(),
         'reminder_duration': _reminderDuration,
-        'notify_push': _notifyPush,
-        'notify_sms': _notifySms,
         'notify_client_driver_details': _notifyClientDriverDetails,
       };
 
@@ -570,42 +566,19 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                 icon: Icons.notifications_active_outlined,
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _reminderDuration,
-                            decoration: const InputDecoration(labelText: 'Driver Reminder Schedule *'),
-                            items: const [
-                              DropdownMenuItem(value: '15 minutes', child: Text('15 Minutes Before Pickup')),
-                              DropdownMenuItem(value: '30 minutes', child: Text('30 Minutes Before Pickup')),
-                              DropdownMenuItem(value: '1 hour', child: Text('1 Hour Before Pickup')),
-                              DropdownMenuItem(value: '2 hours', child: Text('2 Hours Before Pickup')),
-                              DropdownMenuItem(value: '6 hours', child: Text('6 Hours Before Pickup')),
-                              DropdownMenuItem(value: '12 hours', child: Text('12 Hours Before Pickup')),
-                              DropdownMenuItem(value: '24 hours', child: Text('24 Hours Before Pickup')),
-                            ],
-                            onChanged: (val) => setState(() => _reminderDuration = val!),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              CheckboxListTile(
-                                value: _notifyPush,
-                                title: const Text('Driver Push Notification', style: TextStyle(color: AppColors.primaryText, fontSize: 13)),
-                                onChanged: (val) => setState(() => _notifyPush = val ?? true),
-                              ),
-                              CheckboxListTile(
-                                value: _notifySms,
-                                title: const Text('Driver SMS Notification', style: TextStyle(color: AppColors.primaryText, fontSize: 13)),
-                                onChanged: (val) => setState(() => _notifySms = val ?? true),
-                              ),
-                            ],
-                          ),
-                        ),
+                    DropdownButtonFormField<String>(
+                      value: _reminderDuration,
+                      decoration: const InputDecoration(labelText: 'Driver Reminder Schedule *'),
+                      items: const [
+                        DropdownMenuItem(value: '15 minutes', child: Text('15 Minutes Before Pickup')),
+                        DropdownMenuItem(value: '30 minutes', child: Text('30 Minutes Before Pickup')),
+                        DropdownMenuItem(value: '1 hour', child: Text('1 Hour Before Pickup')),
+                        DropdownMenuItem(value: '2 hours', child: Text('2 Hours Before Pickup')),
+                        DropdownMenuItem(value: '6 hours', child: Text('6 Hours Before Pickup')),
+                        DropdownMenuItem(value: '12 hours', child: Text('12 Hours Before Pickup')),
+                        DropdownMenuItem(value: '24 hours', child: Text('24 Hours Before Pickup')),
                       ],
+                      onChanged: (val) => setState(() => _reminderDuration = val!),
                     ),
                     const SizedBox(height: 16),
                     const Divider(color: AppColors.border),

@@ -260,8 +260,8 @@ class BookingNotifier extends StateNotifier<BookingState> {
     required String driverName,
     required String driverMobile,
     required String reminderDuration,
-    required bool notifyPush,
-    required bool notifySms,
+    bool notifyPush = false,
+    bool notifySms = false,
     bool notifyClientDriverDetails = true,
   }) async {
     state = state.copyWith(isLoading: true);
