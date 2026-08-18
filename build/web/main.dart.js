@@ -8618,7 +8618,7 @@ if($.a2==null)A.Y_()
 $.a2.toString
 q=3
 s=6
-return A.E(A.avj("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5emNvbXBhbnkiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY3MDAwMDAwMCwiZXhwIjoxOTg1MDAwMDAwfQ.placeholder_key","https://xyzcompany.supabase.co"),$async$aNR)
+return A.E(A.avj("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwa3JpdGlkc2R2aXJlY291anNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwMzgwMDUsImV4cCI6MjEwMjYxNDAwNX0.rBki6n88UAJROwyEAqi4Nky8DQ0SAQwW0_8BK93piMk","https://xpkritidsdvirecoujsb.supabase.co/rest/v1/"),$async$aNR)
 case 6:q=1
 s=5
 break
