@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/responsive_layout.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../notifications/data/notification_repository.dart';
+import '../../tenant/data/tenant_provider.dart';
 
 class AdminShell extends ConsumerWidget {
   final Widget child;
@@ -15,13 +16,16 @@ class AdminShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final notificationState = ref.watch(notificationProvider);
+    final tenantState = ref.watch(tenantProvider);
     final currentLocation = GoRouterState.of(context).matchedLocation;
+
+    final companyName = tenantState.currentCompany?.name ?? 'Airport Operations Portal';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ResponsiveLayout(
-        desktop: _buildDesktopLayout(context, ref, authState, notificationState, currentLocation),
-        mobile: _buildMobileLayout(context, ref, authState, notificationState, currentLocation),
+        desktop: _buildDesktopLayout(context, ref, authState, notificationState, currentLocation, companyName),
+        mobile: _buildMobileLayout(context, ref, authState, notificationState, currentLocation, companyName),
       ),
     );
   }
@@ -32,6 +36,7 @@ class AdminShell extends ConsumerWidget {
     AuthState authState,
     NotificationState notificationState,
     String currentLocation,
+    String companyName,
   ) {
     return Row(
       children: [
@@ -53,7 +58,7 @@ class AdminShell extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -63,20 +68,22 @@ class AdminShell extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'RUTUJ TOURS & TRAVELS',
-                            style: TextStyle(
+                            companyName.toUpperCase(),
+                            style: const TextStyle(
                               color: AppColors.primaryText,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                               letterSpacing: 0.8,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          Text(
+                          const Text(
                             'Admin Operations Portal',
                             style: TextStyle(
                               color: AppColors.secondaryText,
@@ -250,6 +257,7 @@ class AdminShell extends ConsumerWidget {
     AuthState authState,
     NotificationState notificationState,
     String currentLocation,
+    String companyName,
   ) {
     int selectedIndex = 0;
     if (currentLocation.startsWith('/admin/dashboard')) selectedIndex = 0;

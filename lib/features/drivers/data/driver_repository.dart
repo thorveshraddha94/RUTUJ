@@ -221,18 +221,25 @@ class DriverNotifier extends StateNotifier<DriverState> {
 
     try {
       final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      String? companyId;
+      if (user != null) {
+        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        companyId = profileRes?['company_id']?.toString();
+      }
 
-      // 1. Insert into public.drivers
+      // 1. Insert into public.drivers with tenant company_id
       final driverRes = await client.from('drivers').insert({
         'full_name': name,
         'mobile_number': mobile,
         if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
         'status': statusStr,
+        if (companyId case final id?) 'company_id': id,
       }).select().single();
 
       final driverId = (driverRes['id'] ?? '').toString();
 
-      // 2. Insert into public.vehicles using generated driver.id
+      // 2. Insert into public.vehicles using generated driver.id & company_id
       if (vehicleRegistration != null && vehicleRegistration.trim().isNotEmpty) {
         final vehicleRes = await client.from('vehicles').insert({
           'driver_id': driverId,
@@ -243,6 +250,7 @@ class DriverNotifier extends StateNotifier<DriverState> {
           'passenger_capacity': passengerCapacity ?? 4,
           'luggage_capacity': luggageCapacity ?? 3,
           'is_active': status != DriverStatus.inactive,
+          if (companyId case final id?) 'company_id': id,
         }).select().single();
 
         vehicle = VehicleModel.fromSupabase(vehicleRes);

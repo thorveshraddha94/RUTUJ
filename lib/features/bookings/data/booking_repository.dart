@@ -293,6 +293,12 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
     try {
       final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      String? companyId;
+      if (user != null) {
+        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        companyId = profileRes?['company_id']?.toString();
+      }
 
       final insertData = {
         'client_name': clientName,
@@ -332,6 +338,7 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'notify_push': notifyPush,
         'notify_sms': notifySms,
         'sms_status': smsResult.statusMessage,
+        if (companyId != null) 'company_id': companyId,
       };
 
       final response = await client.from('bookings').insert(insertData).select().single();

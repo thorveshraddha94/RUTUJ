@@ -131,7 +131,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'Rutuj Tours & Travels Admin',
+                    'Airport Operations Portal',
                     style: TextStyle(
                       color: AppColors.primaryText,
                       fontWeight: FontWeight.bold,
@@ -155,9 +155,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.danger.withOpacity(0.12),
+                        color: AppColors.danger.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.danger.withOpacity(0.4)),
+                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
                       ),
                       child: Row(
                         children: [
@@ -259,6 +259,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             'Sign In as Admin',
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                           ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Register Company Button
+                  OutlinedButton.icon(
+                    onPressed: () => context.go('/register'),
+                    icon: const Icon(Icons.domain_add, size: 18),
+                    label: const Text(
+                      'Register New Company Workspace',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: AppColors.primary, width: 1),
+                    ),
                   ),
                 ],
               ),

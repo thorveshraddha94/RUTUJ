@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/login_page.dart';
+import '../../features/auth/presentation/register_page.dart';
 import '../../features/dashboard/presentation/admin_shell.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/bookings/presentation/bookings_list_page.dart';
@@ -22,13 +23,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/admin/dashboard',
     redirect: (context, state) {
       final isLoggingIn = state.matchedLocation == '/login';
+      final isRegistering = state.matchedLocation == '/register';
       final isLoggedIn = authState.isAuthenticated && (authState.user?.isAdmin ?? false);
 
       if (!isLoggedIn) {
-        return isLoggingIn ? null : '/login';
+        if (isLoggingIn || isRegistering) return null;
+        return '/login';
       }
 
-      if (isLoggingIn) {
+      if (isLoggingIn || isRegistering) {
         return '/admin/dashboard';
       }
 
@@ -38,6 +41,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterPage(),
       ),
       ShellRoute(
         builder: (context, state, child) => AdminShell(child: child),
