@@ -22,7 +22,7 @@ class CreateBookingPage extends ConsumerStatefulWidget {
 class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Section 1: Guest / Passenger Details
+  // Section 1: Passenger Information
   final _guestNameController = TextEditingController();
   final _guestMobileController = TextEditingController();
   final _guestEmailController = TextEditingController();
@@ -34,32 +34,24 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _specialAssistanceController = TextEditingController();
   final _guestNotesController = TextEditingController();
 
-  // Section 2: Flight & Airport Details
-  final _flightNumberController = TextEditingController();
-  String _flightType = 'Arrival';
-  final _airportController = TextEditingController(text: 'Ahmedabad International (AMD)');
-  final _terminalController = TextEditingController(text: 'Terminal 2');
-  DateTime _flightDate = DateTime.now();
-  TimeOfDay _flightTime = const TimeOfDay(hour: 9, minute: 45);
-
-  // Section 3: Pickup & Drop-off Route
-  final _pickupLocationController = TextEditingController(text: 'Ahmedabad Airport T2 Arrival Exit');
-  final _pickupTerminalController = TextEditingController(text: 'Terminal 2');
+  // Section 2: Trip Route
+  final _pickupLocationController = TextEditingController();
   final _pickupNotesController = TextEditingController();
   final _destinationController = TextEditingController();
   final _destinationAddressController = TextEditingController();
   final _dropNotesController = TextEditingController();
 
-  // Section 4: Schedule & Timing
+  // Section 3: Schedule & Pricing
   DateTime _pickupDate = DateTime.now();
   TimeOfDay _pickupTime = const TimeOfDay(hour: 10, minute: 0);
+  final _totalFareController = TextEditingController();
 
-  // Section 5: Driver & Vehicle Selection
+  // Section 4: Driver & Vehicle Selection
   DriverModel? _selectedDriver;
   VehicleModel? get _selectedVehicle => _selectedDriver?.vehicle;
   List<DriverModel>? _supabaseActiveDrivers;
 
-  // Section 6: Reminder & Notification Setup
+  // Section 5: Reminder & Notification Setup
   String _reminderDuration = '2 hours';
   bool _notifyPush = true;
   bool _notifySms = true;
@@ -89,7 +81,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     } catch (_) {}
   }
 
-
   @override
   void dispose() {
     _clientRefController.dispose();
@@ -99,24 +90,20 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     _guestEmailController.dispose();
     _specialAssistanceController.dispose();
     _guestNotesController.dispose();
-    _flightNumberController.dispose();
-    _airportController.dispose();
-    _terminalController.dispose();
     _pickupLocationController.dispose();
-    _pickupTerminalController.dispose();
     _pickupNotesController.dispose();
     _destinationController.dispose();
     _destinationAddressController.dispose();
     _dropNotesController.dispose();
+    _totalFareController.dispose();
     super.dispose();
   }
-
 
   void _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill out all required fields across sections.'),
+          content: Text('Please fill out all required fields.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -126,7 +113,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     if (_selectedDriver == null || _selectedVehicle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select an active driver with an assigned vehicle in Section 5.'),
+          content: Text('Please select an active driver with an assigned vehicle.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -136,51 +123,54 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      final flightDateStr = DateFormat('dd MMM yyyy').format(_flightDate);
-      final flightTimeStr = _flightTime.format(context);
-      final pickupDateStr = DateFormat('dd MMM yyyy').format(_pickupDate);
+      final pickupDateStr = DateFormat('yyyy-MM-dd').format(_pickupDate);
       final pickupTimeStr = _pickupTime.format(context);
+      final pickupDateTimeStr = '$pickupDateStr $pickupTimeStr';
+      final totalFare = double.tryParse(_totalFareController.text.trim()) ?? 0.0;
 
-      final newBookingId = await ref.read(bookingProvider.notifier).createBooking(
-            clientReference: _clientRefController.text.trim().isEmpty ? null : _clientRefController.text.trim(),
-            internalNotes: _internalNotesController.text.trim().isEmpty ? null : _internalNotesController.text.trim(),
-            guestName: _guestNameController.text.trim(),
-            guestMobile: _guestMobileController.text.trim(),
-            guestEmail: _guestEmailController.text.trim(),
-            passengersCount: _passengersCount,
-            luggageCount: _luggageCount,
-            isVip: _isVip,
-            specialAssistance: _specialAssistanceController.text.trim().isEmpty ? null : _specialAssistanceController.text.trim(),
-            guestNotes: _guestNotesController.text.trim().isEmpty ? null : _guestNotesController.text.trim(),
-            flightNumber: _flightNumberController.text.trim(),
-            flightType: _flightType,
-            airport: _airportController.text.trim(),
-            terminal: _terminalController.text.trim(),
-            flightDate: flightDateStr,
-            flightTime: flightTimeStr,
-            pickupDate: pickupDateStr,
-            pickupTime: pickupTimeStr,
-            pickupLocation: _pickupLocationController.text.trim(),
-            pickupTerminal: _pickupTerminalController.text.trim().isEmpty ? null : _pickupTerminalController.text.trim(),
-            pickupNotes: _pickupNotesController.text.trim().isEmpty ? null : _pickupNotesController.text.trim(),
-            destination: _destinationController.text.trim(),
-            destinationAddress: _destinationAddressController.text.trim(),
-            dropNotes: _dropNotesController.text.trim().isEmpty ? null : _dropNotesController.text.trim(),
-            vehicleId: _selectedVehicle!.id,
-            vehicleType: _selectedVehicle!.type.name.toUpperCase(),
-            vehicleReg: _selectedVehicle!.registrationNumber,
-            driverId: _selectedDriver!.id,
-            driverName: _selectedDriver!.name,
-            driverMobile: _selectedDriver!.mobile,
-            reminderDuration: _reminderDuration,
-            notifyPush: _notifyPush,
-            notifySms: _notifySms,
-            notifyClientDriverDetails: _notifyClientDriverDetails,
-          );
+      final payload = <String, dynamic>{
+        'passenger_name': _guestNameController.text.trim(),
+        'customer_name': _guestNameController.text.trim(),
+        'passenger_phone': _guestMobileController.text.trim(),
+        'customer_phone': _guestMobileController.text.trim(),
+        'guest_email': _guestEmailController.text.trim(),
+        'pickup_location': _pickupLocationController.text.trim(),
+        'dropoff_location': _destinationController.text.trim().isNotEmpty
+            ? _destinationController.text.trim()
+            : _destinationAddressController.text.trim(),
+        'origin': _pickupLocationController.text.trim(),
+        'destination': _destinationController.text.trim().isNotEmpty
+            ? _destinationController.text.trim()
+            : _destinationAddressController.text.trim(),
+        'pickup_time': pickupDateTimeStr,
+        'pickup_datetime': pickupDateTimeStr,
+        'total_fare': totalFare,
+        'amount': totalFare,
+        'status': 'assigned',
+        'booking_status': 'assigned',
+        'driver_id': _selectedDriver?.id,
+        'vehicle_id': _selectedVehicle?.id,
+        'driver_name': _selectedDriver?.name,
+        'driver_mobile': _selectedDriver?.mobile,
+        'vehicle_registration': _selectedVehicle?.registrationNumber,
+        'vehicle_type': _selectedVehicle?.type.name.toUpperCase(),
+        'notes': _internalNotesController.text.trim(),
+        'booking_reference': _clientRefController.text.trim(),
+        'passengers_count': _passengersCount,
+        'luggage_count': _luggageCount,
+        'is_vip': _isVip,
+        'special_assistance': _specialAssistanceController.text.trim(),
+        'reminder_duration': _reminderDuration,
+        'notify_push': _notifyPush,
+        'notify_sms': _notifySms,
+        'notify_client_driver_details': _notifyClientDriverDetails,
+      };
+
+      final newBookingId = await ref.read(bookingProvider.notifier).createBookingFromMapWithId(payload);
 
       if (mounted) {
         if (_notifyClientDriverDetails) {
-          final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Airport Operations';
+          final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Rutuj Operations';
           showDialog(
             context: context,
             barrierDismissible: false,
@@ -189,7 +179,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               backgroundColor: AppColors.surface,
               title: const Row(
                 children: [
-                  Icon(Icons.chat, color: AppColors.success, size: 28),
+                  Icon(Icons.check_circle_outline, color: AppColors.success, size: 28),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -204,28 +194,28 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Booking reference $newBookingId has been created and assigned.',
-                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                    'Booking for ${_guestNameController.text.trim()} has been assigned to ${_selectedDriver!.name}.',
+                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.secondarySurface,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('👤 Passenger: ${_guestNameController.text.trim()} (${_guestMobileController.text.trim()})',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryText)),
+                        Text('📍 Route: ${_pickupLocationController.text.trim()} → ${_destinationController.text.trim()}',
+                            style: const TextStyle(color: AppColors.primaryText, fontSize: 13, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),
-                        Text('👨‍✈️ Driver: ${_selectedDriver!.name} (${_selectedDriver!.mobile})',
-                            style: const TextStyle(fontSize: 12, color: AppColors.primaryText)),
+                        Text('🚗 Vehicle: ${_selectedVehicle!.make} ${_selectedVehicle!.model} (${_selectedVehicle!.registrationNumber})',
+                            style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
                         const SizedBox(height: 4),
-                        Text('🚘 Vehicle: ${_selectedVehicle!.make} ${_selectedVehicle!.model} (${_selectedVehicle!.registrationNumber})',
-                            style: const TextStyle(fontSize: 12, color: AppColors.primaryText)),
+                        Text('👤 Driver: ${_selectedDriver!.name} (${_selectedDriver!.mobile})',
+                            style: const TextStyle(color: AppColors.secondaryText, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -237,78 +227,27 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                     Navigator.of(dialogContext).pop();
                     context.go('/admin/bookings');
                   },
-                  child: const Text('Go to Bookings List', style: TextStyle(color: AppColors.secondaryText)),
-                ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                  ),
-                  onPressed: () async {
-                    await WhatsAppService.sendTripAssignmentToDriver(
-                      driverPhone: _selectedDriver!.mobile,
-                      driverName: _selectedDriver!.name,
-                      companyName: companyName,
-                      guestName: _guestNameController.text.trim(),
-                      guestPhone: _guestMobileController.text.trim(),
-                      flightNumber: _flightNumberController.text.trim(),
-                      pickupLocation: _pickupLocationController.text.trim(),
-                      dropoffLocation: _destinationController.text.trim(),
-                      scheduledTime: '${DateFormat('dd MMM yyyy').format(_pickupDate)} at ${_pickupTime.format(context)}',
-                      passengersCount: _passengersCount,
-                      luggageCount: _luggageCount,
-                      specialAssistance: _specialAssistanceController.text.trim().isEmpty ? null : _specialAssistanceController.text.trim(),
-                    );
-                  },
-                  icon: const Icon(Icons.badge, size: 16),
-                  label: const Text('Send to Driver'),
-                ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.success,
-                    side: const BorderSide(color: AppColors.success),
-                  ),
-                  onPressed: () async {
-                    await WhatsAppService.sendDriverDetailsToClient(
-                      clientPhone: _guestMobileController.text.trim(),
-                      clientName: _guestNameController.text.trim(),
-                      companyName: companyName,
-                      pickupLocation: _pickupLocationController.text.trim(),
-                      dropoffLocation: _destinationController.text.trim(),
-                      pickupTime: '${DateFormat('dd MMM yyyy').format(_pickupDate)} at ${_pickupTime.format(context)}',
-                      driverName: _selectedDriver!.name,
-                      driverPhone: _selectedDriver!.mobile,
-                      vehicleModel: '${_selectedVehicle!.make} ${_selectedVehicle!.model}',
-                      plateNumber: _selectedVehicle!.registrationNumber,
-                    );
-                  },
-                  icon: const Icon(Icons.person, size: 16),
-                  label: const Text('Send to Guest'),
+                  child: const Text('Go to Bookings List'),
                 ),
                 ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () async {
-                    await WhatsAppService.sendToBoth(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    context.go('/admin/bookings');
+                    WhatsAppService.sendToGuest(
+                      companyName: companyName,
                       guestPhone: _guestMobileController.text.trim(),
                       guestName: _guestNameController.text.trim(),
-                      companyName: companyName,
-                      pickupTime: '${DateFormat('dd MMM yyyy').format(_pickupDate)} at ${_pickupTime.format(context)}',
                       pickupLocation: _pickupLocationController.text.trim(),
+                      pickupTime: pickupTimeStr,
                       dropoffLocation: _destinationController.text.trim(),
                       driverPhone: _selectedDriver!.mobile,
                       driverName: _selectedDriver!.name,
                       vehicleModel: '${_selectedVehicle!.make} ${_selectedVehicle!.model}',
                       plateNumber: _selectedVehicle!.registrationNumber,
-                      flightNumber: _flightNumberController.text.trim(),
-                      passengers: _passengersCount,
-                      notes: _specialAssistanceController.text.trim().isEmpty ? null : _specialAssistanceController.text.trim(),
                     );
                   },
-                  icon: const Icon(Icons.people_alt, size: 18),
-                  label: const Text('👥 Send to Both (All Details)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Send Driver Details via WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -316,11 +255,11 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Booking $newBookingId created and assigned successfully.'),
+              content: Text('Booking $newBookingId created successfully.'),
               backgroundColor: AppColors.success,
             ),
           );
-          context.go('/admin/bookings/$newBookingId');
+          context.go('/admin/bookings');
         }
       }
     } catch (e) {
@@ -342,12 +281,11 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     final driverState = ref.watch(driverProvider);
     final activeDrivers = _supabaseActiveDrivers ?? driverState.activeDrivers;
 
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        title: const Text('Create New Airport Booking', style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+        title: const Text('Create New Booking', style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.primaryText),
           onPressed: () => context.go('/admin/bookings'),
@@ -360,10 +298,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // SECTION 1: Guest / Passenger Details
+              // SECTION 1: Passenger Information
               _buildSectionCard(
                 sectionNumber: '1',
-                title: 'Guest / Passenger Details',
+                title: 'Passenger Information',
                 icon: Icons.person_outline,
                 child: Column(
                   children: [
@@ -372,7 +310,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _guestNameController,
-                            decoration: const InputDecoration(labelText: 'Guest Full Name *'),
+                            decoration: const InputDecoration(labelText: 'Passenger Name *'),
                             validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                           ),
                         ),
@@ -380,7 +318,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _guestMobileController,
-                            decoration: const InputDecoration(labelText: 'Guest Mobile Number *'),
+                            decoration: const InputDecoration(labelText: 'Contact Phone *'),
                             validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                           ),
                         ),
@@ -392,7 +330,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _guestEmailController,
-                            decoration: const InputDecoration(labelText: 'Guest Email Address'),
+                            decoration: const InputDecoration(labelText: 'Email Address'),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -438,7 +376,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _internalNotesController,
-                            decoration: const InputDecoration(labelText: 'Internal Operations Notes'),
+                            decoration: const InputDecoration(labelText: 'Internal Notes'),
                           ),
                         ),
                       ],
@@ -461,14 +399,14 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _specialAssistanceController,
-                            decoration: const InputDecoration(labelText: 'Special Assistance (e.g. Wheelchair, Child Seat)'),
+                            decoration: const InputDecoration(labelText: 'Special Assistance Notes'),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: _guestNotesController,
-                            decoration: const InputDecoration(labelText: 'Guest Identification Notes'),
+                            decoration: const InputDecoration(labelText: 'Guest Notes'),
                           ),
                         ),
                       ],
@@ -478,102 +416,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 2: Flight & Airport Details
+              // SECTION 2: Trip Route
               _buildSectionCard(
                 sectionNumber: '2',
-                title: 'Flight & Airport Details',
-                icon: Icons.flight_takeoff_outlined,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _flightNumberController,
-                            decoration: const InputDecoration(labelText: 'Flight Number (e.g. AI-542) *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _flightType,
-                            decoration: const InputDecoration(labelText: 'Flight Type *'),
-                            items: const [
-                              DropdownMenuItem(value: 'Arrival', child: Text('Arrival Flight')),
-                              DropdownMenuItem(value: 'Departure', child: Text('Departure Flight')),
-                            ],
-                            onChanged: (val) => setState(() => _flightType = val!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _airportController,
-                            decoration: const InputDecoration(labelText: 'Airport Name *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _terminalController,
-                            decoration: const InputDecoration(labelText: 'Terminal *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ListTile(
-                            tileColor: AppColors.secondarySurface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            leading: const Icon(Icons.calendar_month, color: AppColors.primary),
-                            title: const Text('Flight Date', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            subtitle: Text(DateFormat('dd MMM yyyy').format(_flightDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _flightDate,
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
-                              );
-                              if (picked != null) setState(() => _flightDate = picked);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ListTile(
-                            tileColor: AppColors.secondarySurface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            leading: const Icon(Icons.access_time, color: AppColors.primary),
-                            title: const Text('Flight Time', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            subtitle: Text(_flightTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                            onTap: () async {
-                              final picked = await showTimePicker(context: context, initialTime: _flightTime);
-                              if (picked != null) setState(() => _flightTime = picked);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // SECTION 3: Pickup & Drop-off Route
-              _buildSectionCard(
-                sectionNumber: '3',
-                title: 'Pickup & Drop-off Route',
+                title: 'Trip Route',
                 icon: Icons.pin_drop_outlined,
                 child: Column(
                   children: [
@@ -582,34 +428,15 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _pickupLocationController,
-                            decoration: const InputDecoration(labelText: 'Pickup Location Name *'),
+                            decoration: const InputDecoration(labelText: 'Pickup Address *'),
                             validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                           ),
                         ),
                         const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _pickupTerminalController,
-                            decoration: const InputDecoration(labelText: 'Pickup Gate / Terminal'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
                         Expanded(
                           child: TextFormField(
                             controller: _destinationController,
-                            decoration: const InputDecoration(labelText: 'Destination Hotel / Landmark *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _destinationAddressController,
-                            decoration: const InputDecoration(labelText: 'Full Destination Address *'),
+                            decoration: const InputDecoration(labelText: 'Dropoff Address *'),
                             validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                           ),
                         ),
@@ -621,14 +448,14 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _pickupNotesController,
-                            decoration: const InputDecoration(labelText: 'Pickup Instructions / Nameplate Text'),
+                            decoration: const InputDecoration(labelText: 'Pickup Instructions / Landmark Notes'),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: _dropNotesController,
-                            decoration: const InputDecoration(labelText: 'Drop Notes / Concierge Delivery'),
+                            decoration: const InputDecoration(labelText: 'Dropoff Instructions'),
                           ),
                         ),
                       ],
@@ -638,53 +465,68 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 4: Schedule & Timing
+              // SECTION 3: Schedule & Pricing
               _buildSectionCard(
-                sectionNumber: '4',
-                title: 'Schedule & Timing',
+                sectionNumber: '3',
+                title: 'Schedule & Pricing',
                 icon: Icons.calendar_month_outlined,
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: ListTile(
-                        tileColor: AppColors.secondarySurface,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        leading: const Icon(Icons.calendar_month, color: AppColors.primary),
-                        title: const Text('Pickup Date *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                        subtitle: Text(DateFormat('dd MMM yyyy').format(_pickupDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _pickupDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) setState(() => _pickupDate = picked);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ListTile(
-                        tileColor: AppColors.secondarySurface,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        leading: const Icon(Icons.access_time, color: AppColors.primary),
-                        title: const Text('Pickup Time *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                        subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                        onTap: () async {
-                          final picked = await showTimePicker(context: context, initialTime: _pickupTime);
-                          if (picked != null) setState(() => _pickupTime = picked);
-                        },
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ListTile(
+                            tileColor: AppColors.secondarySurface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            leading: const Icon(Icons.calendar_month, color: AppColors.primary),
+                            title: const Text('Pickup Date *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                            subtitle: Text(DateFormat('dd MMM yyyy').format(_pickupDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _pickupDate,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (picked != null) setState(() => _pickupDate = picked);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ListTile(
+                            tileColor: AppColors.secondarySurface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            leading: const Icon(Icons.access_time, color: AppColors.primary),
+                            title: const Text('Pickup Time *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                            subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                            onTap: () async {
+                              final picked = await showTimePicker(context: context, initialTime: _pickupTime);
+                              if (picked != null) setState(() => _pickupTime = picked);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _totalFareController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(
+                              labelText: 'Total Fare / Amount (\$)',
+                              prefixText: '\$ ',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
-              // SECTION 5: Driver & Vehicle Assignment
+              // SECTION 4: Driver & Vehicle Assignment
               _buildSectionCard(
-                sectionNumber: '5',
+                sectionNumber: '4',
                 title: 'Driver & Vehicle Assignment',
                 icon: Icons.badge_outlined,
                 child: Column(
@@ -709,7 +551,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      '* Only active drivers are displayed. Selecting a driver automatically links their assigned vehicle.',
+                      '* Selecting an active driver automatically links their assigned vehicle.',
                       style: TextStyle(color: AppColors.secondaryText, fontSize: 11),
                     ),
                     const SizedBox(height: 16),
@@ -721,9 +563,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 6: Reminder & Notification Setup
+              // SECTION 5: Reminder & Notification Setup
               _buildSectionCard(
-                sectionNumber: '6',
+                sectionNumber: '5',
                 title: 'Reminder & Notification Setup',
                 icon: Icons.notifications_active_outlined,
                 child: Column(
@@ -1080,4 +922,3 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     );
   }
 }
-

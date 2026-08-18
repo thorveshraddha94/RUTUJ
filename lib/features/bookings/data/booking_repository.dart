@@ -177,44 +177,55 @@ class BookingNotifier extends StateNotifier<BookingState> {
   }
 
   Future<void> createBookingFromMap(Map<String, dynamic> data) async {
-    final pickup = (data['pickup_location'] ?? data['origin'] ?? '').toString();
-    final dropoff = (data['dropoff_location'] ?? data['destination'] ?? '').toString();
-    final passengerName = (data['passenger_name'] ?? data['customer_name'] ?? data['guest_name'] ?? 'Passenger').toString();
-    final passengerPhone = (data['passenger_phone'] ?? data['customer_phone'] ?? data['guest_mobile'] ?? '').toString();
-    final pickupTime = (data['pickup_time'] ?? data['pickup_datetime'] ?? DateTime.now().toIso8601String()).toString();
-    final driverId = data['driver_id']?.toString();
-    final vehicleId = data['vehicle_id']?.toString();
-    final flightNumber = data['flight_number']?.toString();
-    final terminal = data['terminal']?.toString();
+    await createBookingFromMapWithId(data);
+  }
 
-    await createBooking(
-      guestName: passengerName,
-      guestMobile: passengerPhone,
-      guestEmail: (data['guest_email'] ?? '').toString(),
-      passengersCount: int.tryParse(data['passengers_count']?.toString() ?? '') ?? 1,
-      luggageCount: int.tryParse(data['luggage_count']?.toString() ?? '') ?? 1,
-      isVip: data['is_vip'] == true,
-      flightNumber: flightNumber ?? '',
-      flightType: (data['flight_type'] ?? 'Arrival').toString(),
-      airport: (data['airport'] ?? '').toString(),
-      terminal: terminal ?? '',
-      flightDate: (data['flight_date'] ?? '').toString(),
-      flightTime: pickupTime,
-      pickupDate: (data['pickup_date'] ?? '').toString(),
-      pickupTime: pickupTime,
-      pickupLocation: pickup,
-      destination: dropoff,
-      destinationAddress: dropoff,
-      vehicleId: vehicleId ?? '',
-      vehicleType: (data['vehicle_type'] ?? 'Sedan').toString(),
-      vehicleReg: (data['vehicle_registration'] ?? '').toString(),
-      driverId: driverId ?? '',
-      driverName: (data['driver_name'] ?? '').toString(),
-      driverMobile: (data['driver_mobile'] ?? '').toString(),
-      reminderDuration: (data['reminder_duration'] ?? '2 hours').toString(),
-      notifyPush: data['notify_push'] != false,
-      notifySms: data['notify_sms'] != false,
-    );
+  Future<String> createBookingFromMapWithId(Map<String, dynamic> data) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final pickup = (data['pickup_location'] ?? data['origin'] ?? '').toString().trim();
+      final dropoff = (data['dropoff_location'] ?? data['destination'] ?? '').toString().trim();
+      final passengerName = (data['passenger_name'] ?? data['customer_name'] ?? 'Passenger').toString().trim();
+      final passengerPhone = (data['passenger_phone'] ?? data['customer_phone'] ?? '').toString().trim();
+      final pickupTime = data['pickup_time'] ?? data['pickup_datetime'] ?? DateTime.now().toIso8601String();
+      final totalFare = double.tryParse((data['total_fare'] ?? data['amount'] ?? '0').toString()) ?? 0.0;
+
+      final payload = <String, dynamic>{
+        'pickup_location': pickup,
+        'dropoff_location': dropoff,
+        'origin': pickup,
+        'destination': dropoff,
+        'passenger_name': passengerName,
+        'customer_name': passengerName,
+        'passenger_phone': passengerPhone,
+        'customer_phone': passengerPhone,
+        'pickup_time': pickupTime,
+        'pickup_datetime': pickupTime,
+        'total_fare': totalFare,
+        'amount': totalFare,
+        'status': data['status'] ?? 'assigned',
+        'booking_status': data['status'] ?? 'assigned',
+        if (data['driver_id'] != null && data['driver_id'].toString().isNotEmpty)
+          'driver_id': data['driver_id'],
+        if (data['vehicle_id'] != null && data['vehicle_id'].toString().isNotEmpty)
+          'vehicle_id': data['vehicle_id'],
+        if (data['company_id'] != null && data['company_id'].toString().isNotEmpty)
+          'company_id': data['company_id'],
+        if (data['notes'] != null && data['notes'].toString().isNotEmpty)
+          'notes': data['notes'],
+      };
+
+      print('🚀 [BookingRepo] Creating simplified booking: $payload');
+      final response = await supabase.from('bookings').insert(payload).select().single();
+      print('✅ [BookingRepo] Booking created successfully: $response');
+      final newId = (response['id'] ?? '').toString();
+      await fetchBookings();
+      return newId;
+    } catch (e, st) {
+      print('❌ [BookingRepo] Error creating booking: $e');
+      print(st);
+      rethrow;
+    }
   }
 
   Future<String> createBooking({

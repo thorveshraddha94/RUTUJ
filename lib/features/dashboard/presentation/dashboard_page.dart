@@ -125,28 +125,23 @@ class DashboardPage extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // Statistics Grid (6 Compact Cards)
+          // Statistics Grid (Compact KPIs 2 to 6 per row)
           LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 1024
-                  ? 3
-                  : constraints.maxWidth > 600
-                      ? 2
-                      : 1;
-
-              final childAspectRatio = constraints.maxWidth > 1024
-                  ? 3.2
-                  : constraints.maxWidth > 600
-                      ? 2.8
-                      : 3.6;
+              int crossAxisCount = 6;
+              if (constraints.maxWidth < 700) {
+                crossAxisCount = 2;
+              } else if (constraints.maxWidth < 1150) {
+                crossAxisCount = 3;
+              }
 
               return GridView.count(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
                 shrinkWrap: true,
-                childAspectRatio: childAspectRatio,
                 physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: crossAxisCount == 6 ? 1.8 : 2.2,
                 children: [
                   StatCard(
                     title: "Today's Bookings",

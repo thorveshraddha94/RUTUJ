@@ -58,12 +58,20 @@ class TodayBookingsTable extends StatelessWidget {
               DataCell(
                 InkWell(
                   onTap: () => onViewDetails(booking.id),
-                  child: Text(
-                    booking.id,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      booking.displayCode,
+                      style: const TextStyle(
+                        color: Color(0xFF60A5FA),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),

@@ -56,6 +56,9 @@ class BookingModel {
   // Compatibility getters for legacy callers
   String get clientName => guestName;
   String get clientContact => guestMobile;
+  String get passengerName => guestName;
+  String get passengerPhone => guestMobile;
+  String get dropoffLocation => destination;
 
   String get displayCode {
     if (referenceCode.isNotEmpty && !referenceCode.startsWith('REF-') && referenceCode.length <= 12) {

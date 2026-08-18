@@ -65,12 +65,12 @@ class DriverStatusCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               StatusBadge(status: status, isCompact: true),
-              if (currentBookingId != null) ...[
+              if (currentBookingId != null && currentBookingId!.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
-                  currentBookingId!,
+                  _formatBookingCode(currentBookingId!),
                   style: const TextStyle(
-                    color: AppColors.secondaryText,
+                    color: Color(0xFF60A5FA),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -81,5 +81,11 @@ class DriverStatusCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatBookingCode(String id) {
+    if (id.startsWith('BK-') || id.startsWith('AT-')) return id;
+    if (id.length >= 8) return 'BK-${id.substring(0, 6).toUpperCase()}';
+    return 'BK-$id';
   }
 }
