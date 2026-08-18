@@ -70,18 +70,18 @@ class VehicleModel {
       };
 
   factory VehicleModel.fromSupabase(Map<String, dynamic> json) {
+    final reg = (json['registration_number'] ?? json['plate_number'] ?? json['registrationNumber'] ?? json['plateNumber'] ?? '').toString();
+    final mModel = (json['model'] ?? json['make'] ?? 'Sedan').toString();
+    final mMake = (json['make'] ?? json['model'] ?? 'Toyota').toString();
+
     return VehicleModel(
       id: (json['id'] ?? '').toString(),
-      registrationNumber: (json['registration_number'] ?? json['registrationNumber'] ?? '').toString(),
-      type: _typeFromString((json['vehicle_category'] ?? json['type'] ?? 'SEDAN').toString()),
-      make: (json['make'] ?? '').toString(),
-      model: (json['model'] ?? '').toString(),
-      passengerCapacity: int.tryParse(json['passenger_capacity']?.toString() ?? '') ??
-          int.tryParse(json['passengerCapacity']?.toString() ?? '') ??
-          4,
-      luggageCapacity: int.tryParse(json['luggage_capacity']?.toString() ?? '') ??
-          int.tryParse(json['luggageCapacity']?.toString() ?? '') ??
-          3,
+      registrationNumber: reg,
+      type: _typeFromString((json['vehicle_category'] ?? json['category'] ?? json['type'] ?? 'SEDAN').toString()),
+      make: mMake,
+      model: mModel,
+      passengerCapacity: int.tryParse(json['passenger_capacity']?.toString() ?? json['seating_capacity']?.toString() ?? json['passengerCapacity']?.toString() ?? '') ?? 4,
+      luggageCapacity: int.tryParse(json['luggage_capacity']?.toString() ?? json['luggageCapacity']?.toString() ?? '') ?? 2,
       isActive: json['is_active'] as bool? ?? json['isActive'] as bool? ?? true,
     );
   }

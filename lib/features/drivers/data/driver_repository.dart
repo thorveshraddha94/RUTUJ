@@ -87,25 +87,40 @@ class DriverNotifier extends StateNotifier<DriverState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final client = Supabase.instance.client;
-      final response = await client
-          .from('drivers')
-          .select('*, vehicles(*)')
-          .order('created_at', ascending: false);
+      dynamic response;
+      try {
+        response = await client.from('drivers').select('*, vehicles(*)').order('created_at', ascending: false);
+      } catch (_) {
+        response = await client.from('drivers').select('*').order('created_at', ascending: false);
+      }
+
+      List<dynamic> allVehicles = [];
+      try {
+        allVehicles = await client.from('vehicles').select('*');
+      } catch (_) {}
 
       final list = response as List<dynamic>;
-      final parsed = list.map((item) => DriverModel.fromSupabase(Map<String, dynamic>.from(item as Map))).toList();
+      final parsed = list.map((item) {
+        final map = Map<String, dynamic>.from(item as Map);
+        final driverId = map['id']?.toString();
+        final vehicleId = map['vehicle_id']?.toString();
+
+        if ((map['vehicles'] == null || (map['vehicles'] is List && (map['vehicles'] as List).isEmpty)) && allVehicles.isNotEmpty) {
+          final matchedVehicle = allVehicles.firstWhere(
+            (v) => (v['driver_id']?.toString() == driverId || v['id']?.toString() == vehicleId),
+            orElse: () => null,
+          );
+          if (matchedVehicle != null) {
+            map['vehicles'] = matchedVehicle;
+          }
+        }
+
+        return DriverModel.fromSupabase(map);
+      }).toList();
 
       state = state.copyWith(drivers: parsed, isLoading: false);
     } catch (_) {
-      try {
-        final client = Supabase.instance.client;
-        final fallbackResponse = await client.from('drivers').select('*').order('created_at', ascending: false);
-        final list = fallbackResponse as List<dynamic>;
-        final parsed = list.map((item) => DriverModel.fromSupabase(Map<String, dynamic>.from(item as Map))).toList();
-        state = state.copyWith(drivers: parsed, isLoading: false);
-      } catch (_) {
-        state = state.copyWith(drivers: [], isLoading: false);
-      }
+      state = state.copyWith(drivers: [], isLoading: false);
     }
   }
 
@@ -182,22 +197,31 @@ class DriverNotifier extends StateNotifier<DriverState> {
       final vMake = vehicleMake?.trim().isNotEmpty == true ? vehicleMake!.trim() : 'Toyota';
 
       // 1. Insert vehicle into 'vehicles' table
-      final vehicleRes = await client.from('vehicles').insert({
+      dynamic vehicleRes;
+      final Map<String, dynamic> vPayload = {
         'registration_number': regNumber,
         'plate_number': regNumber,
         'model': vModel,
         'make': vMake,
         'vehicle_category': (vehicleType ?? VehicleType.sedan).name.toUpperCase(),
         'category': (vehicleType ?? VehicleType.sedan).name,
-        'passenger_capacity': passengerCapacity ?? 4,
-        'luggage_capacity': luggageCapacity ?? 3,
         'status': 'available',
         'is_active': status != DriverStatus.inactive,
         if (companyId != null && companyId.isNotEmpty) 'company_id': companyId,
-      }).select().single();
+      };
+
+      try {
+        vehicleRes = await client.from('vehicles').insert({
+          ...vPayload,
+          'passenger_capacity': passengerCapacity ?? 4,
+          'luggage_capacity': luggageCapacity ?? 3,
+        }).select().single();
+      } catch (_) {
+        vehicleRes = await client.from('vehicles').insert(vPayload).select().single();
+      }
 
       final vehicleId = vehicleRes['id']?.toString();
-      vehicle = VehicleModel.fromSupabase(vehicleRes);
+      vehicle = VehicleModel.fromSupabase(vehicleRes as Map<String, dynamic>);
 
       // 2. Insert driver into 'drivers' table linked with vehicle_id
       final driverRes = await client.from('drivers').insert({
