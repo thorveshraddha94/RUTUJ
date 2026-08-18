@@ -177,12 +177,11 @@ class BookingNotifier extends StateNotifier<BookingState> {
   }
 
   Future<void> createBookingFromMap(Map<String, dynamic> data) async {
+    final pickup = (data['pickup_location'] ?? data['origin'] ?? '').toString();
+    final dropoff = (data['dropoff_location'] ?? data['destination'] ?? '').toString();
     final passengerName = (data['passenger_name'] ?? data['customer_name'] ?? data['guest_name'] ?? 'Passenger').toString();
     final passengerPhone = (data['passenger_phone'] ?? data['customer_phone'] ?? data['guest_mobile'] ?? '').toString();
-    final pickupLoc = (data['pickup_location'] ?? '').toString();
-    final dropoffLoc = (data['dropoff_location'] ?? data['destination'] ?? '').toString();
     final pickupTime = (data['pickup_time'] ?? data['pickup_datetime'] ?? DateTime.now().toIso8601String()).toString();
-    final status = (data['status'] ?? data['booking_status'] ?? 'pending').toString();
     final driverId = data['driver_id']?.toString();
     final vehicleId = data['vehicle_id']?.toString();
     final flightNumber = data['flight_number']?.toString();
@@ -203,9 +202,9 @@ class BookingNotifier extends StateNotifier<BookingState> {
       flightTime: pickupTime,
       pickupDate: (data['pickup_date'] ?? '').toString(),
       pickupTime: pickupTime,
-      pickupLocation: pickupLoc,
-      destination: dropoffLoc,
-      destinationAddress: dropoffLoc,
+      pickupLocation: pickup,
+      destination: dropoff,
+      destinationAddress: dropoff,
       vehicleId: vehicleId ?? '',
       vehicleType: (data['vehicle_type'] ?? 'Sedan').toString(),
       vehicleReg: (data['vehicle_registration'] ?? '').toString(),
@@ -274,7 +273,7 @@ class BookingNotifier extends StateNotifier<BookingState> {
         companyId = profileRes?['company_id']?.toString();
       }
 
-      final insertData = {
+      final insertData = <String, dynamic>{
         'passenger_name': guestName,
         'customer_name': guestName,
         'passenger_phone': guestMobile,
@@ -299,6 +298,7 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'pickup_time': pickupTime,
         'pickup_datetime': pickupDate,
         'pickup_location': pickupLocation,
+        'origin': pickupLocation,
         if (pickupTerminal != null && pickupTerminal.trim().isNotEmpty) 'pickup_terminal': pickupTerminal.trim(),
         if (pickupNotes != null && pickupNotes.trim().isNotEmpty) 'pickup_notes': pickupNotes.trim(),
         'destination': destination,
@@ -326,26 +326,42 @@ class BookingNotifier extends StateNotifier<BookingState> {
       try {
         response = await client.from('bookings').insert(insertData).select().single();
       } catch (e) {
-        print('⚠️ [BookingRepo] Full payload insert error: $e. Retrying with core payload...');
-        final coreData = {
-          'passenger_name': guestName,
-          'customer_name': guestName,
-          'guest_name': guestName,
-          'passenger_phone': guestMobile,
-          'customer_phone': guestMobile,
-          'guest_mobile': guestMobile,
-          'pickup_location': pickupLocation,
-          'dropoff_location': destination,
-          'destination': destination,
-          'status': 'assigned',
-          'booking_status': 'assigned',
-          if (flightNumber.isNotEmpty) 'flight_number': flightNumber,
-          if (terminal.isNotEmpty) 'terminal': terminal,
-          if (vehicleId.isNotEmpty) 'vehicle_id': vehicleId,
-          if (driverId.isNotEmpty) 'driver_id': driverId,
-          if (companyId != null) 'company_id': companyId,
-        };
-        response = await client.from('bookings').insert(coreData).select().single();
+        print('⚠️ [BookingRepo] Full payload insert error: $e. Retrying with sanitized location payload...');
+        final sanitizedData = Map<String, dynamic>.from(insertData);
+        final errStr = e.toString();
+        if (errStr.contains('destination')) {
+          sanitizedData.remove('destination');
+        }
+        if (errStr.contains('origin')) {
+          sanitizedData.remove('origin');
+        }
+        if (errStr.contains('customer_name')) {
+          sanitizedData.remove('customer_name');
+        }
+        if (errStr.contains('customer_phone')) {
+          sanitizedData.remove('customer_phone');
+        }
+        if (errStr.contains('booking_status')) {
+          sanitizedData.remove('booking_status');
+        }
+        try {
+          response = await client.from('bookings').insert(sanitizedData).select().single();
+        } catch (_) {
+          print('⚠️ [BookingRepo] Retrying with core essential payload...');
+          final coreData = {
+            'passenger_name': guestName,
+            'passenger_phone': guestMobile,
+            'pickup_location': pickupLocation,
+            'dropoff_location': destination,
+            'status': 'assigned',
+            if (flightNumber.isNotEmpty) 'flight_number': flightNumber,
+            if (terminal.isNotEmpty) 'terminal': terminal,
+            if (vehicleId.isNotEmpty) 'vehicle_id': vehicleId,
+            if (driverId.isNotEmpty) 'driver_id': driverId,
+            if (companyId != null) 'company_id': companyId,
+          };
+          response = await client.from('bookings').insert(coreData).select().single();
+        }
       }
 
       final newBookingId = (response['id'] ?? '').toString();
