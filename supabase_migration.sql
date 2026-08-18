@@ -28,6 +28,25 @@ ALTER TABLE public.vehicles
 ALTER TABLE public.bookings 
     ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE;
 
+ALTER TABLE public.bookings 
+    ADD COLUMN IF NOT EXISTS notify_client_driver_details BOOLEAN DEFAULT true;
+
+-- 4. Create Message Logs Table for Client Messaging Dispatch
+CREATE TABLE IF NOT EXISTS public.message_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE CASCADE,
+    recipient TEXT NOT NULL,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT DEFAULT 'sent',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.message_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated access to message_logs" ON public.message_logs;
+CREATE POLICY "Allow authenticated access to message_logs" ON public.message_logs FOR ALL USING (true);
+
 -- 4. Enable Row Level Security (RLS)
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

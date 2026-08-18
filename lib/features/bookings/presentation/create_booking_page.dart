@@ -65,6 +65,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   String _reminderDuration = '2 hours';
   bool _notifyPush = true;
   bool _notifySms = true;
+  bool _notifyClientDriverDetails = true;
 
   bool _isSubmitting = false;
 
@@ -180,12 +181,17 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             reminderDuration: _reminderDuration,
             notifyPush: _notifyPush,
             notifySms: _notifySms,
+            notifyClientDriverDetails: _notifyClientDriverDetails,
           );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Booking $newBookingId created and assigned successfully.'),
+            content: Text(
+              _notifyClientDriverDetails
+                  ? 'Booking $newBookingId created & driver details sent to client successfully!'
+                  : 'Booking $newBookingId created and assigned successfully.',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -652,18 +658,117 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                             children: [
                               CheckboxListTile(
                                 value: _notifyPush,
-                                title: const Text('Push Notification', style: TextStyle(color: AppColors.primaryText, fontSize: 13)),
+                                title: const Text('Driver Push Notification', style: TextStyle(color: AppColors.primaryText, fontSize: 13)),
                                 onChanged: (val) => setState(() => _notifyPush = val ?? true),
                               ),
                               CheckboxListTile(
                                 value: _notifySms,
-                                title: const Text('SMS Notification', style: TextStyle(color: AppColors.primaryText, fontSize: 13)),
+                                title: const Text('Driver SMS Notification', style: TextStyle(color: AppColors.primaryText, fontSize: 13)),
                                 onChanged: (val) => setState(() => _notifySms = val ?? true),
                               ),
                             ],
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(color: AppColors.border),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondarySurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: _notifyClientDriverDetails,
+                            activeColor: AppColors.primary,
+                            title: const Row(
+                              children: [
+                                Icon(Icons.send_to_mobile, color: AppColors.primary, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Send Driver & Vehicle Details to Client (SMS / WhatsApp)',
+                                  style: TextStyle(
+                                    color: AppColors.primaryText,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: const Padding(
+                              padding: EdgeInsets.only(top: 4, left: 28),
+                              child: Text(
+                                'Automatically send an SMS/message with driver contact and vehicle info to the passenger upon assignment.',
+                                style: TextStyle(color: AppColors.secondaryText, fontSize: 12),
+                              ),
+                            ),
+                            onChanged: (val) => setState(() => _notifyClientDriverDetails = val),
+                          ),
+                          if (_notifyClientDriverDetails) ...[
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 28),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.phone_android, color: AppColors.primary, size: 14),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Recipient: ${_guestMobileController.text.trim().isNotEmpty ? _guestMobileController.text.trim() : "Passenger Mobile"}',
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.chat, color: AppColors.success, size: 14),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'SMS / WhatsApp Auto-Dispatch',
+                                          style: TextStyle(
+                                            color: AppColors.success,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

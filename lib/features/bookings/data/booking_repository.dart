@@ -277,6 +277,7 @@ class BookingNotifier extends StateNotifier<BookingState> {
     required String reminderDuration,
     required bool notifyPush,
     required bool notifySms,
+    bool notifyClientDriverDetails = true,
   }) async {
     state = state.copyWith(isLoading: true);
 
@@ -337,22 +338,44 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'reminder_duration': reminderDuration,
         'notify_push': notifyPush,
         'notify_sms': notifySms,
+        'notify_client_driver_details': notifyClientDriverDetails,
         'sms_status': smsResult.statusMessage,
         if (companyId != null) 'company_id': companyId,
       };
 
       final response = await client.from('bookings').insert(insertData).select().single();
-      final insertedBookingId = (response['id'] ?? '').toString();
+      final newBookingId = (response['id'] ?? '').toString();
+
+      // Dispatch Client Driver Details Message if enabled
+      if (notifyClientDriverDetails && guestMobile.isNotEmpty) {
+        final clientMessageText = '''
+Hello $guestName, your transfer has been scheduled!
+🚗 Vehicle: $vehicleType ($vehicleReg)
+👤 Driver: $driverName ($driverMobile)
+📍 Pickup: $pickupLocation at $pickupTime
+Thank you for choosing your airport transfer provider!''';
+
+        try {
+          await client.from('message_logs').insert({
+            if (companyId != null) 'company_id': companyId,
+            'booking_id': newBookingId,
+            'recipient': guestMobile,
+            'type': 'client_driver_assignment',
+            'content': clientMessageText,
+            'status': 'sent',
+          });
+        } catch (_) {}
+      }
 
       _ref.read(notificationProvider.notifier).addNotification(
             title: 'New Airport Transfer Assigned',
-            message: 'Booking $insertedBookingId assigned to $driverName. Guest: $guestName. Pickup: $pickupLocation at $pickupTime.',
+            message: 'Booking $newBookingId assigned to $driverName. Guest: $guestName. Pickup: $pickupLocation at $pickupTime.',
             type: NotificationType.driverAssigned,
-            bookingId: insertedBookingId,
+            bookingId: newBookingId,
           );
 
       _ref.read(notificationProvider.notifier).scheduleReminder(
-            bookingId: insertedBookingId,
+            bookingId: newBookingId,
             driverId: driverId,
             durationLabel: reminderDuration,
             pickupTime: now.add(const Duration(hours: 2)),

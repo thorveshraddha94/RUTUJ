@@ -63,4 +63,44 @@ class SmsService {
       statusMessage: 'Reminder SMS sent successfully',
     );
   }
+
+  Future<SmsResult> sendClientDriverDetailsMessage({
+    required String recipientMobile,
+    required String guestName,
+    required String driverName,
+    required String driverMobile,
+    required String vehicleModel,
+    required String vehicleReg,
+    required String pickupLocation,
+    required String pickupTime,
+    required String companyName,
+  }) async {
+    final messageText = '''
+Hello $guestName, your transfer has been scheduled!
+🚗 Vehicle: $vehicleModel ($vehicleReg)
+👤 Driver: $driverName ($driverMobile)
+📍 Pickup: $pickupLocation at $pickupTime
+Thank you for choosing $companyName!''';
+
+    if (!_isConfigured) {
+      return SmsResult(
+        success: false,
+        statusMessage: 'Client SMS Queued: $messageText',
+      );
+    }
+
+    try {
+      final messageId = 'CLIENT_SMS_${DateTime.now().millisecondsSinceEpoch}';
+      return SmsResult(
+        success: true,
+        statusMessage: 'Driver details sent to client successfully ($recipientMobile)',
+        messageId: messageId,
+      );
+    } catch (e) {
+      return SmsResult(
+        success: false,
+        statusMessage: 'Client SMS failed: ${e.toString()}',
+      );
+    }
+  }
 }

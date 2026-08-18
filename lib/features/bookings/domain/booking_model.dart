@@ -90,6 +90,7 @@ class BookingModel {
   final String? reminderDuration; // e.g. '2 hours'
   final bool notifyPush;
   final bool notifySms;
+  final bool notifyClientDriverDetails;
   final String? smsStatus; // e.g., 'SMS Sent' or 'SMS Pending'
   final DateTime createdAt;
   final String? cancellationReason;
@@ -134,6 +135,7 @@ class BookingModel {
     this.reminderDuration,
     this.notifyPush = true,
     this.notifySms = true,
+    this.notifyClientDriverDetails = true,
     this.smsStatus,
     required this.createdAt,
     this.cancellationReason,
@@ -179,6 +181,7 @@ class BookingModel {
     String? reminderDuration,
     bool? notifyPush,
     bool? notifySms,
+    bool? notifyClientDriverDetails,
     String? smsStatus,
     DateTime? createdAt,
     String? cancellationReason,
@@ -223,6 +226,7 @@ class BookingModel {
       reminderDuration: reminderDuration ?? this.reminderDuration,
       notifyPush: notifyPush ?? this.notifyPush,
       notifySms: notifySms ?? this.notifySms,
+      notifyClientDriverDetails: notifyClientDriverDetails ?? this.notifyClientDriverDetails,
       smsStatus: smsStatus ?? this.smsStatus,
       createdAt: createdAt ?? this.createdAt,
       cancellationReason: cancellationReason ?? this.cancellationReason,
@@ -270,6 +274,7 @@ class BookingModel {
       reminderDuration: json['reminderDuration'] as String?,
       notifyPush: json['notifyPush'] as bool? ?? true,
       notifySms: json['notifySms'] as bool? ?? true,
+      notifyClientDriverDetails: json['notifyClientDriverDetails'] as bool? ?? true,
       smsStatus: json['smsStatus'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       cancellationReason: json['cancellationReason'] as String?,
@@ -319,6 +324,7 @@ class BookingModel {
         'reminderDuration': reminderDuration,
         'notifyPush': notifyPush,
         'notifySms': notifySms,
+        'notifyClientDriverDetails': notifyClientDriverDetails,
         'smsStatus': smsStatus,
         'createdAt': createdAt.toIso8601String(),
         'cancellationReason': cancellationReason,
@@ -369,6 +375,7 @@ class BookingModel {
       reminderDuration: json['reminder_duration'] as String? ?? json['reminderDuration'] as String?,
       notifyPush: json['notify_push'] as bool? ?? json['notifyPush'] as bool? ?? true,
       notifySms: json['notify_sms'] as bool? ?? json['notifySms'] as bool? ?? true,
+      notifyClientDriverDetails: json['notify_client_driver_details'] as bool? ?? json['notifyClientDriverDetails'] as bool? ?? true,
       smsStatus: json['sms_status'] as String? ?? json['smsStatus'] as String?,
       createdAt: json['created_at'] != null
           ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
@@ -420,6 +427,7 @@ class BookingModel {
         if (reminderDuration != null) 'reminder_duration': reminderDuration,
         'notify_push': notifyPush,
         'notify_sms': notifySms,
+        'notify_client_driver_details': notifyClientDriverDetails,
         if (smsStatus != null) 'sms_status': smsStatus,
         if (cancellationReason != null) 'cancellation_reason': cancellationReason,
       };
