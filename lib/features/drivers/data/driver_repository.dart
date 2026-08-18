@@ -276,6 +276,72 @@ class DriverNotifier extends StateNotifier<DriverState> {
 
     state = state.copyWith(drivers: updatedList);
   }
+
+  Future<bool> updateDriverAndVehicle({
+    required String driverId,
+    required String driverName,
+    required String driverPhone,
+    String? driverEmail,
+    DriverStatus? status,
+    String? vehicleId,
+    required String vehicleModel,
+    required String plateNumber,
+    VehicleType? vehicleType,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final client = Supabase.instance.client;
+      final statusStr = status == DriverStatus.active
+          ? 'Active (Ready)'
+          : status == DriverStatus.inactive
+              ? 'Inactive'
+              : 'On Trip';
+
+      // 1. Update the driver record
+      await client.from('drivers').update({
+        'name': driverName.trim(),
+        'full_name': driverName.trim(),
+        'phone': driverPhone.trim(),
+        'mobile_number': driverPhone.trim(),
+        if (driverEmail != null && driverEmail.trim().isNotEmpty) 'email': driverEmail.trim(),
+        if (status != null) 'status': statusStr,
+      }).eq('id', driverId);
+
+      // 2. Update the linked vehicle or insert one if not already existing
+      if (vehicleId != null && vehicleId.isNotEmpty) {
+        await client.from('vehicles').update({
+          'model': vehicleModel.trim(),
+          'make': vehicleModel.trim(),
+          'plate_number': plateNumber.trim().toUpperCase(),
+          'registration_number': plateNumber.trim().toUpperCase(),
+          if (vehicleType != null) 'vehicle_category': vehicleType.name.toUpperCase(),
+          if (vehicleType != null) 'category': vehicleType.name,
+        }).eq('id', vehicleId);
+      } else {
+        final newVehicle = await client.from('vehicles').insert({
+          'model': vehicleModel.trim(),
+          'make': vehicleModel.trim(),
+          'plate_number': plateNumber.trim().toUpperCase(),
+          'registration_number': plateNumber.trim().toUpperCase(),
+          'vehicle_category': (vehicleType ?? VehicleType.sedan).name.toUpperCase(),
+          'category': (vehicleType ?? VehicleType.sedan).name,
+          'driver_id': driverId,
+          'status': 'available',
+        }).select().single();
+
+        final newVehicleId = newVehicle['id']?.toString();
+        if (newVehicleId != null) {
+          await client.from('drivers').update({'vehicle_id': newVehicleId}).eq('id', driverId);
+        }
+      }
+
+      await fetchDrivers();
+      return true;
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      return false;
+    }
+  }
 }
 
 final driverProvider = StateNotifierProvider<DriverNotifier, DriverState>((ref) {

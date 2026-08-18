@@ -6,6 +6,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../../vehicles/domain/vehicle_model.dart';
 import '../data/driver_repository.dart';
 import '../domain/driver_model.dart';
+import 'edit_driver_dialog.dart';
 
 class DriversPage extends ConsumerStatefulWidget {
   const DriversPage({super.key});
@@ -164,6 +165,7 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                         DataColumn(label: Text('Upcoming Trips', style: _headerStyle)),
                         DataColumn(label: Text('Status', style: _headerStyle)),
                         DataColumn(label: Text('Active Toggle', style: _headerStyle)),
+                        DataColumn(label: Text('Actions', style: _headerStyle)),
                       ],
                       rows: driverState.filteredDrivers.map((driver) {
                         final vehicle = driver.vehicle;
@@ -261,6 +263,18 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                                 value: driver.status != DriverStatus.inactive,
                                 activeColor: AppColors.success,
                                 onChanged: (val) => notifier.toggleDriverStatus(driver.id),
+                              ),
+                            ),
+                            DataCell(
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                                tooltip: 'Edit Driver & Vehicle',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => EditDriverDialog(driver: driver),
+                                  );
+                                },
                               ),
                             ),
                           ],
