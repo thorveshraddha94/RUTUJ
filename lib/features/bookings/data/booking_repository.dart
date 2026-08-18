@@ -101,9 +101,9 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
       final dynamic response;
       if (companyId != null && companyId.isNotEmpty) {
-        response = await client.from('bookings').select('*').eq('company_id', companyId);
+        response = await client.from('bookings').select('*, drivers(*), vehicles(*)').eq('company_id', companyId);
       } else {
-        response = await client.from('bookings').select('*');
+        response = await client.from('bookings').select('*, drivers(*), vehicles(*)');
       }
 
       final fetched = (response as List)

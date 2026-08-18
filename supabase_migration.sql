@@ -156,3 +156,20 @@ DROP POLICY IF EXISTS "Tenant Isolation for Message Logs" ON public.message_logs
 CREATE POLICY "Tenant Isolation for Message Logs" ON public.message_logs
   FOR ALL USING (company_id = public.get_current_company_id())
   WITH CHECK (company_id = public.get_current_company_id());
+
+-- 6. Relational Links & Columns for Data Persistence
+ALTER TABLE public.drivers 
+  ADD COLUMN IF NOT EXISTS vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE SET NULL;
+
+ALTER TABLE public.vehicles 
+  ADD COLUMN IF NOT EXISTS driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL;
+
+ALTER TABLE public.bookings
+  ADD COLUMN IF NOT EXISTS driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS passenger_name TEXT,
+  ADD COLUMN IF NOT EXISTS passenger_phone TEXT,
+  ADD COLUMN IF NOT EXISTS pickup_location TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_location TEXT,
+  ADD COLUMN IF NOT EXISTS pickup_time TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';

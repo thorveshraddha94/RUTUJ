@@ -324,6 +324,17 @@ class BookingModel {
       };
 
   factory BookingModel.fromSupabase(Map<String, dynamic> json) {
+    final driverMap = json['drivers'] is Map<String, dynamic> ? json['drivers'] as Map<String, dynamic> : null;
+    final driverName = json['driver_name']?.toString() ?? driverMap?['full_name']?.toString() ?? driverMap?['name']?.toString();
+    final driverMobile = json['driver_mobile']?.toString() ?? driverMap?['mobile_number']?.toString() ?? driverMap?['mobile']?.toString();
+
+    final vehicleMap = json['vehicles'] is Map<String, dynamic> ? json['vehicles'] as Map<String, dynamic> : null;
+    final vehicleMake = vehicleMap?['make']?.toString();
+    final vehicleModel = vehicleMap?['model']?.toString();
+    final vehicleReg = json['vehicle_registration']?.toString() ?? vehicleMap?['registration_number']?.toString();
+    final vehicleType = json['vehicle_type']?.toString() ??
+        (vehicleMake != null && vehicleModel != null ? '$vehicleMake $vehicleModel' : null);
+
     return BookingModel(
       id: (json['id'] ?? '').toString(),
       referenceCode: (json['booking_reference'] ?? json['reference_code'] ?? json['referenceCode'] ?? 'REF-${json['id']}').toString(),
@@ -352,15 +363,15 @@ class BookingModel {
       pickupLocation: (json['pickup_location'] ?? json['pickupLocation'] ?? '').toString(),
       pickupTerminal: json['pickup_terminal'] as String? ?? json['pickupTerminal'] as String?,
       pickupNotes: json['pickup_notes'] as String? ?? json['pickupNotes'] as String?,
-      destination: (json['destination'] ?? '').toString(),
-      destinationAddress: (json['destination_address'] ?? json['destinationAddress'] ?? '').toString(),
+      destination: (json['destination'] ?? json['dropoff_location'] ?? '').toString(),
+      destinationAddress: (json['destination_address'] ?? json['destinationAddress'] ?? json['destination'] ?? '').toString(),
       dropNotes: json['drop_notes'] as String? ?? json['dropNotes'] as String?,
       vehicleId: json['vehicle_id']?.toString() ?? json['vehicleId']?.toString(),
-      vehicleType: json['vehicle_type']?.toString() ?? json['vehicleType']?.toString(),
-      vehicleRegistration: json['vehicle_registration']?.toString() ?? json['vehicleRegistration']?.toString(),
+      vehicleType: vehicleType,
+      vehicleRegistration: vehicleReg,
       driverId: json['driver_id']?.toString() ?? json['driverId']?.toString(),
-      driverName: json['driver_name']?.toString() ?? json['driverName']?.toString(),
-      driverMobile: json['driver_mobile']?.toString() ?? json['driverMobile']?.toString(),
+      driverName: driverName,
+      driverMobile: driverMobile,
       status: _statusFromString((json['status'] ?? 'pending').toString()),
       reminderDuration: json['reminder_duration'] as String? ?? json['reminderDuration'] as String?,
       notifyPush: json['notify_push'] as bool? ?? json['notifyPush'] as bool? ?? true,

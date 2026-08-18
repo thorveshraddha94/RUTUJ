@@ -202,6 +202,10 @@ class DriverNotifier extends StateNotifier<DriverState> {
         }).select().single();
 
         vehicle = VehicleModel.fromSupabase(vehicleRes);
+        final vehicleId = vehicleRes['id']?.toString();
+        if (vehicleId != null) {
+          await client.from('drivers').update({'vehicle_id': vehicleId}).eq('id', driverId);
+        }
       }
 
       await fetchDrivers();
