@@ -63,30 +63,45 @@ Have a pleasant journey!
     required String pickupTime,
     required String pickupLocation,
     required String dropoffLocation,
+    String? bookingId,
+    String? tripToken,
+    String? displayCode,
     String? flightNumber,
     int? passengers,
     String? notes,
   }) async {
-    final message = '''
-*NEW TRIP ASSIGNMENT*
-----------------------------------------
-Hello *$driverName*, you have a new trip scheduled from *$companyName*:
+    final token = tripToken ?? bookingId ?? '';
+    final code = displayCode ?? (token.length >= 6 ? 'BK-${token.substring(0, 6).toUpperCase()}' : 'BK-TRIP');
+    final tripLink = token.isNotEmpty ? 'https://travelportl.vercel.app/#/trip/$token' : '';
 
-*Pickup Time:* $pickupTime
-*Pickup Location:* $pickupLocation
-*Dropoff Location:* $dropoffLocation
-*Flight No:* ${flightNumber != null && flightNumber.isNotEmpty ? flightNumber : 'N/A'}
+    final buffer = StringBuffer();
+    buffer.writeln('🚗 *New Trip Assignment — $code*');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('Hello *$driverName*, you have a new trip scheduled from *$companyName*:');
+    buffer.writeln('');
+    buffer.writeln('👤 *Passenger:* $guestName');
+    buffer.writeln('📞 *Contact:* $guestPhone');
+    buffer.writeln('📍 *Pickup:* $pickupLocation');
+    buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    buffer.writeln('⏰ *Pickup Time:* $pickupTime');
+    if (flightNumber != null && flightNumber.isNotEmpty) {
+      buffer.writeln('✈️ *Flight No:* $flightNumber');
+    }
+    if (passengers != null) {
+      buffer.writeln('👥 *Pax:* $passengers');
+    }
+    if (notes != null && notes.isNotEmpty) {
+      buffer.writeln('📝 *Notes:* $notes');
+    }
+    if (tripLink.isNotEmpty) {
+      buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+      buffer.writeln('📲 *Update Trip Status (Tap Link Below):*');
+      buffer.writeln(tripLink);
+    }
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('Please ensure punctuality. Have a safe drive!');
 
-*GUEST INFORMATION*
-- *Guest Name:* $guestName
-- *Guest Contact:* $guestPhone
-- *Passengers / Pax:* ${passengers ?? 1}
-- *Notes:* ${notes != null && notes.isNotEmpty ? notes : 'None'}
-
-Please ensure punctuality.
-----------------------------------------''';
-
-    await _launchWhatsApp(driverPhone, message);
+    await _launchWhatsApp(driverPhone, buffer.toString());
   }
 
   /// 3. 1-Click WhatsApp Template sent to BOTH Guest and Driver
@@ -101,6 +116,9 @@ Please ensure punctuality.
     required String driverName,
     required String vehicleModel,
     required String plateNumber,
+    String? bookingId,
+    String? tripToken,
+    String? displayCode,
     String? flightNumber,
     int? passengers,
     String? notes,
@@ -129,6 +147,9 @@ Please ensure punctuality.
       pickupTime: pickupTime,
       pickupLocation: pickupLocation,
       dropoffLocation: dropoffLocation,
+      bookingId: bookingId,
+      tripToken: tripToken,
+      displayCode: displayCode,
       flightNumber: flightNumber,
       passengers: passengers,
       notes: notes,
@@ -173,6 +194,9 @@ Please ensure punctuality.
     required String scheduledTime,
     required int passengersCount,
     required int luggageCount,
+    String? bookingId,
+    String? tripToken,
+    String? displayCode,
     String? specialAssistance,
   }) =>
       sendToDriver(
@@ -184,6 +208,9 @@ Please ensure punctuality.
         pickupTime: scheduledTime,
         pickupLocation: pickupLocation,
         dropoffLocation: dropoffLocation,
+        bookingId: bookingId,
+        tripToken: tripToken,
+        displayCode: displayCode,
         flightNumber: flightNumber,
         passengers: passengersCount,
         notes: specialAssistance,

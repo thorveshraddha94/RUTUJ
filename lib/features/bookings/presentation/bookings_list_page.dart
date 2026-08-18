@@ -249,7 +249,7 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                                             const SizedBox(width: 8),
                                                             Expanded(
                                                               child: Text(
-                                                                'WhatsApp Dispatch — ${b.id}',
+                                                                'WhatsApp Dispatch — ${b.displayCode}',
                                                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                                               ),
                                                             ),
@@ -259,6 +259,7 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                                           'Select recipient to dispatch WhatsApp transfer details:',
                                                           style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                                                         ),
+                                                        actionsAlignment: MainAxisAlignment.center,
                                                         actions: [
                                                           OutlinedButton.icon(
                                                             onPressed: () {
@@ -275,16 +276,18 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                                                 scheduledTime: '${b.pickupDate} at ${b.pickupTime}',
                                                                 passengersCount: b.passengersCount,
                                                                 luggageCount: b.luggageCount,
+                                                                bookingId: b.id,
+                                                                displayCode: b.displayCode,
                                                                 specialAssistance: b.specialAssistance,
                                                               );
                                                             },
-                                                            icon: const Icon(Icons.badge, size: 16),
-                                                            label: Text('Driver (${b.driverName})'),
+                                                            icon: const Icon(Icons.badge_outlined, size: 16),
+                                                            label: Text('Driver (${b.driverName ?? "Assigned"})'),
                                                           ),
-                                                          OutlinedButton.icon(
-                                                            style: OutlinedButton.styleFrom(
-                                                              foregroundColor: AppColors.success,
-                                                              side: const BorderSide(color: AppColors.success),
+                                                          ElevatedButton.icon(
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor: AppColors.success,
+                                                              foregroundColor: Colors.white,
                                                             ),
                                                             onPressed: () {
                                                               Navigator.of(dialogContext).pop();
@@ -301,34 +304,8 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                                                 plateNumber: b.vehicleRegistration ?? 'N/A',
                                                               );
                                                             },
-                                                            icon: const Icon(Icons.person, size: 16),
+                                                            icon: const Icon(Icons.person_outline, size: 16),
                                                             label: Text('Guest (${b.guestName})'),
-                                                          ),
-                                                          ElevatedButton.icon(
-                                                            style: ElevatedButton.styleFrom(
-                                                              backgroundColor: AppColors.success,
-                                                              foregroundColor: Colors.white,
-                                                            ),
-                                                            onPressed: () {
-                                                              Navigator.of(dialogContext).pop();
-                                                              WhatsAppService.sendToBoth(
-                                                                guestPhone: b.guestMobile,
-                                                                guestName: b.guestName,
-                                                                companyName: companyName,
-                                                                pickupTime: '${b.pickupDate} at ${b.pickupTime}',
-                                                                pickupLocation: b.pickupLocation,
-                                                                dropoffLocation: b.destination,
-                                                                driverPhone: b.driverMobile!,
-                                                                driverName: b.driverName!,
-                                                                vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
-                                                                plateNumber: b.vehicleRegistration ?? 'N/A',
-                                                                flightNumber: b.flightNumber,
-                                                                passengers: b.passengersCount,
-                                                                notes: b.specialAssistance,
-                                                              );
-                                                            },
-                                                            icon: const Icon(Icons.people_alt, size: 16),
-                                                            label: const Text('👥 Send to Both'),
                                                           ),
                                                         ],
                                                       ),

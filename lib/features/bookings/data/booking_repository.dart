@@ -28,19 +28,30 @@ class BookingState {
 
   List<BookingModel> get filteredBookings {
     return bookings.where((booking) {
-      final matchesSearch = booking.guestName.toLowerCase().contains(searchQuery.toLowerCase()) ||
+      final matchesSearch =
+          booking.guestName.toLowerCase().contains(searchQuery.toLowerCase()) ||
           booking.guestMobile.contains(searchQuery) ||
-          booking.referenceCode.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          booking.flightNumber.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          (booking.driverName?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+          booking.referenceCode.toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ) ||
+          booking.flightNumber.toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ) ||
+          (booking.driverName?.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              ) ??
+              false);
 
-      final matchesStatus = statusFilter == null || booking.status == statusFilter;
+      final matchesStatus =
+          statusFilter == null || booking.status == statusFilter;
 
-      final matchesDriver = selectedDriverFilter == null ||
+      final matchesDriver =
+          selectedDriverFilter == null ||
           selectedDriverFilter!.isEmpty ||
           booking.driverName == selectedDriverFilter;
 
-      final matchesAirport = selectedAirportFilter == null ||
+      final matchesAirport =
+          selectedAirportFilter == null ||
           selectedAirportFilter!.isEmpty ||
           booking.airport == selectedAirportFilter;
 
@@ -49,14 +60,20 @@ class BookingState {
   }
 
   List<BookingModel> get todayBookings => bookings.where((b) {
-        return b.status != BookingStatus.cancelled && b.status != BookingStatus.completed;
-      }).toList();
+    return b.status != BookingStatus.cancelled &&
+        b.status != BookingStatus.completed;
+  }).toList();
 
   List<BookingModel> get pendingBookings =>
       bookings.where((b) => b.status == BookingStatus.pending).toList();
 
-  List<BookingModel> get confirmedBookings =>
-      bookings.where((b) => b.status == BookingStatus.confirmed || b.status == BookingStatus.assigned).toList();
+  List<BookingModel> get confirmedBookings => bookings
+      .where(
+        (b) =>
+            b.status == BookingStatus.confirmed ||
+            b.status == BookingStatus.assigned,
+      )
+      .toList();
 
   List<BookingModel> get completedBookings =>
       bookings.where((b) => b.status == BookingStatus.completed).toList();
@@ -81,9 +98,15 @@ class BookingState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       searchQuery: searchQuery ?? this.searchQuery,
-      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
-      selectedDriverFilter: clearDriverFilter ? null : (selectedDriverFilter ?? this.selectedDriverFilter),
-      selectedAirportFilter: clearAirportFilter ? null : (selectedAirportFilter ?? this.selectedAirportFilter),
+      statusFilter: clearStatusFilter
+          ? null
+          : (statusFilter ?? this.statusFilter),
+      selectedDriverFilter: clearDriverFilter
+          ? null
+          : (selectedDriverFilter ?? this.selectedDriverFilter),
+      selectedAirportFilter: clearAirportFilter
+          ? null
+          : (selectedAirportFilter ?? this.selectedAirportFilter),
     );
   }
 }
@@ -92,15 +115,15 @@ class BookingNotifier extends StateNotifier<BookingState> {
   final Ref _ref;
   final SmsService _smsService;
   StreamSubscription<AuthState>? _authSubscription;
+  RealtimeChannel? _realtimeChannel;
 
   BookingNotifier(this._ref, this._smsService)
-      : super(
-          const BookingState(
-            bookings: [],
-          ),
-        ) {
+    : super(const BookingState(bookings: [])) {
     fetchBookings();
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _initRealtimeSubscription();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
       if (data.event == AuthChangeEvent.signedIn ||
           data.event == AuthChangeEvent.tokenRefreshed ||
           data.event == AuthChangeEvent.initialSession) {
@@ -109,11 +132,37 @@ class BookingNotifier extends StateNotifier<BookingState> {
     });
   }
 
+  void _initRealtimeSubscription() {
+    subscribeToRealtime();
+  }
+
+  void subscribeToRealtime() {
+    try {
+      final client = Supabase.instance.client;
+      _realtimeChannel?.unsubscribe();
+      _realtimeChannel = client
+          .channel('public:bookings')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'bookings',
+            callback: (payload) {
+              print('⚡ [Realtime] Bookings updated, syncing live...');
+              loadBookings();
+            },
+          )
+          .subscribe();
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _realtimeChannel?.unsubscribe();
     super.dispose();
   }
+
+  Future<void> loadBookings() => fetchBookings();
 
   Future<void> fetchBookings() async {
     state = state.copyWith(isLoading: true);
@@ -131,15 +180,23 @@ class BookingNotifier extends StateNotifier<BookingState> {
         return;
       }
 
-      final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+      final profileRes = await client
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .maybeSingle();
       final companyId = profileRes?['company_id']?.toString();
 
       dynamic response;
       try {
         print('🔍 [BookingRepo] Fetching bookings with relational join...');
-        var query = client.from('bookings').select('*, drivers(*), vehicles(*)');
+        var query = client
+            .from('bookings')
+            .select('*, drivers(*), vehicles(*)');
         if (companyId != null && companyId.isNotEmpty) {
-          response = await query.eq('company_id', companyId).order('created_at', ascending: false);
+          response = await query
+              .eq('company_id', companyId)
+              .order('created_at', ascending: false);
         } else {
           response = await query.order('created_at', ascending: false);
         }
@@ -148,7 +205,9 @@ class BookingNotifier extends StateNotifier<BookingState> {
         try {
           var query = client.from('bookings').select('*');
           if (companyId != null && companyId.isNotEmpty) {
-            response = await query.eq('company_id', companyId).order('created_at', ascending: false);
+            response = await query
+                .eq('company_id', companyId)
+                .order('created_at', ascending: false);
           } else {
             response = await query.order('created_at', ascending: false);
           }
@@ -158,7 +217,10 @@ class BookingNotifier extends StateNotifier<BookingState> {
       }
 
       final fetched = (response as List)
-          .map((e) => BookingModel.fromSupabase(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) =>
+                BookingModel.fromSupabase(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
       print('📦 [BookingRepo] Loaded ${fetched.length} bookings successfully.');
       state = state.copyWith(bookings: fetched, isLoading: false);
@@ -173,7 +235,10 @@ class BookingNotifier extends StateNotifier<BookingState> {
   }
 
   void setStatusFilter(BookingStatus? status) {
-    state = state.copyWith(statusFilter: status, clearStatusFilter: status == null);
+    state = state.copyWith(
+      statusFilter: status,
+      clearStatusFilter: status == null,
+    );
   }
 
   Future<void> createBookingFromMap(Map<String, dynamic> data) async {
@@ -183,12 +248,29 @@ class BookingNotifier extends StateNotifier<BookingState> {
   Future<String> createBookingFromMapWithId(Map<String, dynamic> data) async {
     try {
       final supabase = Supabase.instance.client;
-      final pickup = (data['pickup_location'] ?? data['origin'] ?? '').toString().trim();
-      final dropoff = (data['dropoff_location'] ?? data['destination'] ?? '').toString().trim();
-      final passengerName = (data['passenger_name'] ?? data['customer_name'] ?? 'Passenger').toString().trim();
-      final passengerPhone = (data['passenger_phone'] ?? data['customer_phone'] ?? '').toString().trim();
-      final pickupTime = data['pickup_time'] ?? data['pickup_datetime'] ?? DateTime.now().toIso8601String();
-      final totalFare = double.tryParse((data['total_fare'] ?? data['amount'] ?? '0').toString()) ?? 0.0;
+      final pickup = (data['pickup_location'] ?? data['origin'] ?? '')
+          .toString()
+          .trim();
+      final dropoff = (data['dropoff_location'] ?? data['destination'] ?? '')
+          .toString()
+          .trim();
+      final passengerName =
+          (data['passenger_name'] ?? data['customer_name'] ?? 'Passenger')
+              .toString()
+              .trim();
+      final passengerPhone =
+          (data['passenger_phone'] ?? data['customer_phone'] ?? '')
+              .toString()
+              .trim();
+      final pickupTime =
+          data['pickup_time'] ??
+          data['pickup_datetime'] ??
+          DateTime.now().toIso8601String();
+      final totalFare =
+          double.tryParse(
+            (data['total_fare'] ?? data['amount'] ?? '0').toString(),
+          ) ??
+          0.0;
 
       final payload = <String, dynamic>{
         'pickup_location': pickup,
@@ -205,18 +287,25 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'amount': totalFare,
         'status': data['status'] ?? 'assigned',
         'booking_status': data['status'] ?? 'assigned',
-        if (data['driver_id'] != null && data['driver_id'].toString().isNotEmpty)
+        if (data['driver_id'] != null &&
+            data['driver_id'].toString().isNotEmpty)
           'driver_id': data['driver_id'],
-        if (data['vehicle_id'] != null && data['vehicle_id'].toString().isNotEmpty)
+        if (data['vehicle_id'] != null &&
+            data['vehicle_id'].toString().isNotEmpty)
           'vehicle_id': data['vehicle_id'],
-        if (data['company_id'] != null && data['company_id'].toString().isNotEmpty)
+        if (data['company_id'] != null &&
+            data['company_id'].toString().isNotEmpty)
           'company_id': data['company_id'],
         if (data['notes'] != null && data['notes'].toString().isNotEmpty)
           'notes': data['notes'],
       };
 
       print('🚀 [BookingRepo] Creating simplified booking: $payload');
-      final response = await supabase.from('bookings').insert(payload).select().single();
+      final response = await supabase
+          .from('bookings')
+          .insert(payload)
+          .select()
+          .single();
       print('✅ [BookingRepo] Booking created successfully: $response');
       final newId = (response['id'] ?? '').toString();
       await fetchBookings();
@@ -280,7 +369,11 @@ class BookingNotifier extends StateNotifier<BookingState> {
       final user = client.auth.currentUser;
       String? companyId;
       if (user != null) {
-        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        final profileRes = await client
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .maybeSingle();
         companyId = profileRes?['company_id']?.toString();
       }
 
@@ -289,16 +382,20 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'customer_name': guestName,
         'passenger_phone': guestMobile,
         'customer_phone': guestMobile,
-        if (clientReference != null && clientReference.trim().isNotEmpty) 'booking_reference': clientReference.trim(),
-        if (internalNotes != null && internalNotes.trim().isNotEmpty) 'notes': internalNotes.trim(),
+        if (clientReference != null && clientReference.trim().isNotEmpty)
+          'booking_reference': clientReference.trim(),
+        if (internalNotes != null && internalNotes.trim().isNotEmpty)
+          'notes': internalNotes.trim(),
         'guest_name': guestName,
         'guest_mobile': guestMobile,
         'guest_email': guestEmail,
         'passengers_count': passengersCount,
         'luggage_count': luggageCount,
         'is_vip': isVip,
-        if (specialAssistance != null && specialAssistance.trim().isNotEmpty) 'special_assistance': specialAssistance.trim(),
-        if (guestNotes != null && guestNotes.trim().isNotEmpty) 'guest_notes': guestNotes.trim(),
+        if (specialAssistance != null && specialAssistance.trim().isNotEmpty)
+          'special_assistance': specialAssistance.trim(),
+        if (guestNotes != null && guestNotes.trim().isNotEmpty)
+          'guest_notes': guestNotes.trim(),
         'flight_number': flightNumber,
         'flight_type': flightType,
         'airport': airport,
@@ -310,12 +407,15 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'pickup_datetime': pickupDate,
         'pickup_location': pickupLocation,
         'origin': pickupLocation,
-        if (pickupTerminal != null && pickupTerminal.trim().isNotEmpty) 'pickup_terminal': pickupTerminal.trim(),
-        if (pickupNotes != null && pickupNotes.trim().isNotEmpty) 'pickup_notes': pickupNotes.trim(),
+        if (pickupTerminal != null && pickupTerminal.trim().isNotEmpty)
+          'pickup_terminal': pickupTerminal.trim(),
+        if (pickupNotes != null && pickupNotes.trim().isNotEmpty)
+          'pickup_notes': pickupNotes.trim(),
         'destination': destination,
         'destination_address': destinationAddress,
         'dropoff_location': destination,
-        if (dropNotes != null && dropNotes.trim().isNotEmpty) 'drop_notes': dropNotes.trim(),
+        if (dropNotes != null && dropNotes.trim().isNotEmpty)
+          'drop_notes': dropNotes.trim(),
         if (vehicleId.isNotEmpty) 'vehicle_id': vehicleId,
         'vehicle_type': vehicleType,
         'vehicle_registration': vehicleReg,
@@ -335,9 +435,15 @@ class BookingNotifier extends StateNotifier<BookingState> {
       print('🚀 [BookingRepo] Inserting booking payload: $insertData');
       dynamic response;
       try {
-        response = await client.from('bookings').insert(insertData).select().single();
+        response = await client
+            .from('bookings')
+            .insert(insertData)
+            .select()
+            .single();
       } catch (e) {
-        print('⚠️ [BookingRepo] Full payload insert error: $e. Retrying with sanitized location payload...');
+        print(
+          '⚠️ [BookingRepo] Full payload insert error: $e. Retrying with sanitized location payload...',
+        );
         final sanitizedData = Map<String, dynamic>.from(insertData);
         final errStr = e.toString();
         if (errStr.contains('destination')) {
@@ -356,7 +462,11 @@ class BookingNotifier extends StateNotifier<BookingState> {
           sanitizedData.remove('booking_status');
         }
         try {
-          response = await client.from('bookings').insert(sanitizedData).select().single();
+          response = await client
+              .from('bookings')
+              .insert(sanitizedData)
+              .select()
+              .single();
         } catch (_) {
           print('⚠️ [BookingRepo] Retrying with core essential payload...');
           final coreData = {
@@ -371,7 +481,11 @@ class BookingNotifier extends StateNotifier<BookingState> {
             if (driverId.isNotEmpty) 'driver_id': driverId,
             if (companyId != null) 'company_id': companyId,
           };
-          response = await client.from('bookings').insert(coreData).select().single();
+          response = await client
+              .from('bookings')
+              .insert(coreData)
+              .select()
+              .single();
         }
       }
 
@@ -379,7 +493,8 @@ class BookingNotifier extends StateNotifier<BookingState> {
       print('✅ [BookingRepo] Booking created successfully: $newBookingId');
 
       if (notifyClientDriverDetails && guestMobile.isNotEmpty) {
-        final clientMessageText = '''
+        final clientMessageText =
+            '''
 Hello $guestName, your transfer has been scheduled!
 🚗 Vehicle: $vehicleType ($vehicleReg)
 👤 Driver: $driverName ($driverMobile)
@@ -398,9 +513,12 @@ Thank you for choosing your airport transfer provider!''';
         } catch (_) {}
       }
 
-      _ref.read(notificationProvider.notifier).addNotification(
+      _ref
+          .read(notificationProvider.notifier)
+          .addNotification(
             title: 'New Airport Transfer Assigned',
-            message: 'Booking $newBookingId assigned to $driverName. Guest: $guestName. Pickup: $pickupLocation at $pickupTime.',
+            message:
+                'Booking $newBookingId assigned to $driverName. Guest: $guestName. Pickup: $pickupLocation at $pickupTime.',
             type: NotificationType.driverAssigned,
             bookingId: newBookingId,
           );
@@ -436,7 +554,8 @@ Thank you for choosing your airport transfer provider!''';
           TimelineEventModel(
             id: 'TL_${now.millisecondsSinceEpoch}',
             title: 'Driver Reassigned',
-            description: 'Reassigned from $oldDriverName to $newDriverName ($newVehicleReg)',
+            description:
+                'Reassigned from $oldDriverName to $newDriverName ($newVehicleReg)',
             timestamp: now,
             iconType: 'reassign',
           ),
@@ -458,7 +577,9 @@ Thank you for choosing your airport transfer provider!''';
 
     // Cancel old reminder & notify
     _ref.read(notificationProvider.notifier).cancelReminder(bookingId);
-    _ref.read(notificationProvider.notifier).addNotification(
+    _ref
+        .read(notificationProvider.notifier)
+        .addNotification(
           title: 'Driver Reassigned',
           message: 'Booking $bookingId reassigned to $newDriverName.',
           type: NotificationType.driverAssigned,
@@ -498,7 +619,9 @@ Thank you for choosing your airport transfer provider!''';
 
     // Cancel reminder
     _ref.read(notificationProvider.notifier).cancelReminder(bookingId);
-    _ref.read(notificationProvider.notifier).addNotification(
+    _ref
+        .read(notificationProvider.notifier)
+        .addNotification(
           title: 'Booking Cancelled',
           message: 'Booking $bookingId was cancelled. Reason: $reason',
           type: NotificationType.bookingCancelled,
@@ -529,18 +652,21 @@ Thank you for choosing your airport transfer provider!''';
       return b;
     }).toList();
 
-
-
     state = state.copyWith(bookings: updated);
   }
 }
 
-final bookingProvider = StateNotifierProvider<BookingNotifier, BookingState>((ref) {
+final bookingProvider = StateNotifierProvider<BookingNotifier, BookingState>((
+  ref,
+) {
   final smsService = SmsService(isConfigured: false);
   return BookingNotifier(ref, smsService);
 });
 
-final bookingDetailsProvider = Provider.family<BookingModel?, String>((ref, bookingId) {
+final bookingDetailsProvider = Provider.family<BookingModel?, String>((
+  ref,
+  bookingId,
+) {
   final state = ref.watch(bookingProvider);
   try {
     return state.bookings.firstWhere((b) => b.id == bookingId);

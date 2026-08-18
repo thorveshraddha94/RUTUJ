@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
@@ -20,11 +19,12 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      height: 68, // Hard-capped height to ensure compact size
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFF131E2E),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF1F2E45)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -41,17 +41,17 @@ class StatCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.secondaryText,
-                    fontSize: 13,
+                    color: Color(0xFF94A3B8),
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
-                    color: AppColors.primaryText,
-                    fontSize: 24,
+                    color: Colors.white,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.5,
                   ),
@@ -59,9 +59,10 @@ class StatCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 34,
+            height: 34,
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: accentColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
@@ -69,7 +70,7 @@ class StatCard extends StatelessWidget {
             child: Icon(
               icon,
               color: accentColor,
-              size: 20,
+              size: 18,
             ),
           ),
         ],

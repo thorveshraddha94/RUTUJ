@@ -125,62 +125,72 @@ class DashboardPage extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // Statistics Grid (Compact KPIs 2 to 6 per row)
+          // Statistics Grid (Compact KPIs)
           LayoutBuilder(
             builder: (context, constraints) {
-              int crossAxisCount = 6;
-              if (constraints.maxWidth < 700) {
-                crossAxisCount = 2;
-              } else if (constraints.maxWidth < 1150) {
-                crossAxisCount = 3;
-              }
+              final cards = [
+                StatCard(
+                  title: "Today's Bookings",
+                  value: '$totalToday',
+                  icon: Icons.calendar_today_outlined,
+                  accentColor: const Color(0xFF38BDF8),
+                ),
+                StatCard(
+                  title: "Upcoming",
+                  value: '$upcoming',
+                  icon: Icons.access_time,
+                  accentColor: const Color(0xFFFBBF24),
+                ),
+                StatCard(
+                  title: "In Progress",
+                  value: '$inProgress',
+                  icon: Icons.alt_route,
+                  accentColor: const Color(0xFF818CF8),
+                ),
+                StatCard(
+                  title: "Completed",
+                  value: '$completed',
+                  icon: Icons.check_circle_outline,
+                  accentColor: const Color(0xFF34D399),
+                ),
+                StatCard(
+                  title: "Unassigned",
+                  value: '$unassigned',
+                  icon: Icons.warning_amber_rounded,
+                  accentColor: const Color(0xFFF87171),
+                ),
+                StatCard(
+                  title: "Cancelled",
+                  value: '$cancelled',
+                  icon: Icons.cancel_outlined,
+                  accentColor: const Color(0xFF94A3B8),
+                ),
+              ];
 
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: crossAxisCount == 6 ? 1.8 : 2.2,
-                children: [
-                  StatCard(
-                    title: "Today's Bookings",
-                    value: '$totalToday',
-                    icon: Icons.calendar_month_outlined,
-                    accentColor: AppColors.primary,
-                  ),
-                  StatCard(
-                    title: 'Upcoming',
-                    value: '$upcoming',
-                    icon: Icons.schedule_outlined,
-                    accentColor: AppColors.warning,
-                  ),
-                  StatCard(
-                    title: 'In Progress',
-                    value: '$inProgress',
-                    icon: Icons.alt_route_rounded,
-                    accentColor: const Color(0xFF4F8CFF),
-                  ),
-                  StatCard(
-                    title: 'Completed',
-                    value: '$completed',
-                    icon: Icons.check_circle_outline,
-                    accentColor: AppColors.success,
-                  ),
-                  StatCard(
-                    title: 'Unassigned',
-                    value: '$unassigned',
-                    icon: Icons.warning_amber_rounded,
-                    accentColor: AppColors.danger,
-                  ),
-                  StatCard(
-                    title: 'Cancelled',
-                    value: '$cancelled',
-                    icon: Icons.cancel_outlined,
-                    accentColor: AppColors.secondaryText,
-                  ),
-                ],
-              );
+              if (constraints.maxWidth > 1100) {
+                // Desktop: All 6 cards in a single sleek row
+                return Row(
+                  children: cards
+                      .map((card) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: card,
+                            ),
+                          ))
+                      .toList(),
+                );
+              } else {
+                // Tablet / Mobile: 2 or 3 columns with high aspect ratio
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: constraints.maxWidth > 650 ? 3 : 2,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 3.2,
+                  children: cards,
+                );
+              }
             },
           ),
           const SizedBox(height: 24),

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/presentation/login_page.dart';
@@ -15,6 +16,7 @@ import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/history/presentation/history_page.dart';
 import '../../features/reports/presentation/reports_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
+import '../../features/driver_portal/presentation/driver_trip_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -22,22 +24,51 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/admin/dashboard',
     redirect: (context, state) {
-      final isLoggingIn = state.matchedLocation == '/login';
-      final isRegistering = state.matchedLocation == '/register';
-      final isLoggedIn = authState.isAuthenticated && (authState.user?.isAdmin ?? false);
+      final path = state.uri.path;
+      final fullUri = state.uri.toString();
+      final matched = state.matchedLocation;
+      final fragment = state.uri.fragment;
+      final browserUrl = Uri.base.toString();
 
-      if (!isLoggedIn) {
-        if (isLoggingIn || isRegistering) return null;
+      // IF ACCESSING ANY DRIVER TRIP ROUTE -> NEVER REDIRECT
+      if (path.contains('/trip') ||
+          matched.contains('/trip') ||
+          fullUri.contains('/trip') ||
+          fragment.contains('/trip') ||
+          browserUrl.contains('/trip')) {
+        return null; // Do NOT redirect to login
+      }
+
+      final hasSession = Supabase.instance.client.auth.currentSession != null;
+      final isLoggedIn = (authState.isAuthenticated && (authState.user?.isAdmin ?? false)) || hasSession;
+      final isLoggingIn = path == '/login' || path == '/admin/login' || path == '/register';
+
+      if (!isLoggedIn && !isLoggingIn) {
         return '/login';
       }
 
-      if (isLoggingIn || isRegistering) {
+      if (isLoggedIn && isLoggingIn) {
         return '/admin/dashboard';
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/trip/:token',
+        name: 'driver-trip',
+        builder: (context, state) {
+          final token = state.pathParameters['token'] ?? state.uri.queryParameters['token'] ?? '';
+          return DriverTripPage(token: token);
+        },
+      ),
+      GoRoute(
+        path: '/trip',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return DriverTripPage(token: token);
+        },
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),

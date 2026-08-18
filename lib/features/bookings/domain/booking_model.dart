@@ -59,6 +59,7 @@ class BookingModel {
   String get passengerName => guestName;
   String get passengerPhone => guestMobile;
   String get dropoffLocation => destination;
+  String get tripToken => id;
 
   String get displayCode {
     if (referenceCode.isNotEmpty && !referenceCode.startsWith('REF-') && referenceCode.length <= 12) {
@@ -108,6 +109,8 @@ class BookingModel {
   final bool notifyClientDriverDetails;
   final String? smsStatus; // e.g., 'SMS Sent' or 'SMS Pending'
   final DateTime createdAt;
+  final DateTime? tripStartedAt;
+  final DateTime? tripCompletedAt;
   final String? cancellationReason;
   final List<TimelineEventModel> timeline;
 
@@ -153,6 +156,8 @@ class BookingModel {
     this.notifyClientDriverDetails = true,
     this.smsStatus,
     required this.createdAt,
+    this.tripStartedAt,
+    this.tripCompletedAt,
     this.cancellationReason,
     required this.timeline,
     this.totalFare = 0.0,
@@ -401,6 +406,8 @@ class BookingModel {
           : (json['createdAt'] != null
               ? (DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
               : DateTime.now()),
+      tripStartedAt: json['trip_started_at'] != null ? DateTime.tryParse(json['trip_started_at'].toString()) : null,
+      tripCompletedAt: json['trip_completed_at'] != null ? DateTime.tryParse(json['trip_completed_at'].toString()) : null,
       cancellationReason: json['cancellation_reason'] as String? ?? json['cancellationReason'] as String?,
       timeline: (json['timeline'] as List<dynamic>?)
               ?.map((e) => TimelineEventModel.fromJson(e as Map<String, dynamic>))
