@@ -7,11 +7,24 @@ import '../../vehicles/domain/vehicle_model.dart';
 import '../data/driver_repository.dart';
 import '../domain/driver_model.dart';
 
-class DriversPage extends ConsumerWidget {
+class DriversPage extends ConsumerStatefulWidget {
   const DriversPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DriversPage> createState() => _DriversPageState();
+}
+
+class _DriversPageState extends ConsumerState<DriversPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(driverProvider.notifier).fetchDrivers();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final driverState = ref.watch(driverProvider);
     final notifier = ref.read(driverProvider.notifier);
 

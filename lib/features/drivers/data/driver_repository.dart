@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/driver_model.dart';
@@ -22,20 +23,12 @@ class DriverState {
 
   List<DriverModel> get filteredDrivers {
     return drivers.where((driver) {
-      final q = searchQuery.toLowerCase();
-      final matchesSearch = q.isEmpty ||
-          driver.name.toLowerCase().contains(q) ||
-          driver.mobile.contains(q) ||
-          (driver.email != null && driver.email!.toLowerCase().contains(q)) ||
-          (driver.username != null && driver.username!.toLowerCase().contains(q)) ||
-          (driver.vehicle != null &&
-              (driver.vehicle!.registrationNumber.toLowerCase().contains(q) ||
-                  driver.vehicle!.make.toLowerCase().contains(q) ||
-                  driver.vehicle!.model.toLowerCase().contains(q)));
+      final matchesSearch = driver.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          driver.mobile.contains(searchQuery) ||
+          (driver.vehicle?.registrationNumber.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
 
       final matchesStatus = statusFilter == null || driver.status == statusFilter;
-      final matchesVehicleType = vehicleTypeFilter == null ||
-          (driver.vehicle != null && driver.vehicle!.type == vehicleTypeFilter);
+      final matchesVehicleType = vehicleTypeFilter == null || (driver.vehicle != null && driver.vehicle!.type == vehicleTypeFilter);
 
       return matchesSearch && matchesStatus && matchesVehicleType;
     }).toList();
@@ -66,6 +59,8 @@ class DriverState {
 }
 
 class DriverNotifier extends StateNotifier<DriverState> {
+  StreamSubscription<AuthState>? _authSubscription;
+
   DriverNotifier()
       : super(
           const DriverState(
@@ -73,25 +68,46 @@ class DriverNotifier extends StateNotifier<DriverState> {
           ),
         ) {
     fetchDrivers();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.tokenRefreshed ||
+          data.event == AuthChangeEvent.initialSession) {
+        fetchDrivers();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchDrivers() async {
     state = state.copyWith(isLoading: true);
     try {
       final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      String? companyId;
-      if (user != null) {
-        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
-        companyId = profileRes?['company_id']?.toString();
+      var user = client.auth.currentUser;
+
+      if (user == null && client.auth.currentSession == null) {
+        await Future.delayed(const Duration(milliseconds: 600));
+        user = client.auth.currentUser;
       }
 
-      final dynamic response;
-      if (companyId != null && companyId.isNotEmpty) {
-        response = await client.from('drivers').select('*, vehicles(*)').eq('company_id', companyId);
-      } else {
-        response = await client.from('drivers').select('*, vehicles(*)');
+      if (user == null) {
+        state = state.copyWith(drivers: [], isLoading: false);
+        return;
       }
+
+      final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+      final companyId = profileRes?['company_id']?.toString();
+
+      var query = client.from('drivers').select('*, vehicles(*)');
+      if (companyId != null && companyId.isNotEmpty) {
+        query = query.eq('company_id', companyId);
+      }
+
+      final response = await query.order('created_at', ascending: false);
 
       final fetched = (response as List)
           .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))

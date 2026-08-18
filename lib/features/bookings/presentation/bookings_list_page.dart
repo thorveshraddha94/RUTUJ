@@ -9,11 +9,24 @@ import '../../../core/services/whatsapp_service.dart';
 import '../../tenant/data/tenant_provider.dart';
 import 'cancel_booking_dialog.dart';
 
-class BookingsListPage extends ConsumerWidget {
+class BookingsListPage extends ConsumerStatefulWidget {
   const BookingsListPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BookingsListPage> createState() => _BookingsListPageState();
+}
+
+class _BookingsListPageState extends ConsumerState<BookingsListPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(bookingProvider.notifier).fetchBookings();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final bookingState = ref.watch(bookingProvider);
     final notifier = ref.read(bookingProvider.notifier);
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/booking_model.dart';
@@ -26,16 +27,22 @@ class BookingState {
   });
 
   List<BookingModel> get filteredBookings {
-    return bookings.where((b) {
-      final matchesSearch = b.id.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          b.referenceCode.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          b.guestName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          b.clientName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          (b.driverName?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+    return bookings.where((booking) {
+      final matchesSearch = booking.guestName.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          booking.guestMobile.contains(searchQuery) ||
+          booking.referenceCode.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          booking.flightNumber.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          (booking.driverName?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
 
-      final matchesStatus = statusFilter == null || b.status == statusFilter;
-      final matchesDriver = selectedDriverFilter == null || b.driverId == selectedDriverFilter;
-      final matchesAirport = selectedAirportFilter == null || b.airport == selectedAirportFilter;
+      final matchesStatus = statusFilter == null || booking.status == statusFilter;
+
+      final matchesDriver = selectedDriverFilter == null ||
+          selectedDriverFilter!.isEmpty ||
+          booking.driverName == selectedDriverFilter;
+
+      final matchesAirport = selectedAirportFilter == null ||
+          selectedAirportFilter!.isEmpty ||
+          booking.airport == selectedAirportFilter;
 
       return matchesSearch && matchesStatus && matchesDriver && matchesAirport;
     }).toList();
@@ -44,6 +51,12 @@ class BookingState {
   List<BookingModel> get todayBookings => bookings.where((b) {
         return b.status != BookingStatus.cancelled && b.status != BookingStatus.completed;
       }).toList();
+
+  List<BookingModel> get pendingBookings =>
+      bookings.where((b) => b.status == BookingStatus.pending).toList();
+
+  List<BookingModel> get confirmedBookings =>
+      bookings.where((b) => b.status == BookingStatus.confirmed || b.status == BookingStatus.assigned).toList();
 
   List<BookingModel> get completedBookings =>
       bookings.where((b) => b.status == BookingStatus.completed).toList();
@@ -78,6 +91,7 @@ class BookingState {
 class BookingNotifier extends StateNotifier<BookingState> {
   final Ref _ref;
   final SmsService _smsService;
+  StreamSubscription<AuthState>? _authSubscription;
 
   BookingNotifier(this._ref, this._smsService)
       : super(
@@ -86,24 +100,55 @@ class BookingNotifier extends StateNotifier<BookingState> {
           ),
         ) {
     fetchBookings();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.tokenRefreshed ||
+          data.event == AuthChangeEvent.initialSession) {
+        fetchBookings();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchBookings() async {
     state = state.copyWith(isLoading: true);
     try {
       final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      String? companyId;
-      if (user != null) {
-        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
-        companyId = profileRes?['company_id']?.toString();
+      var user = client.auth.currentUser;
+
+      if (user == null && client.auth.currentSession == null) {
+        await Future.delayed(const Duration(milliseconds: 600));
+        user = client.auth.currentUser;
       }
 
-      final dynamic response;
-      if (companyId != null && companyId.isNotEmpty) {
-        response = await client.from('bookings').select('*, drivers(*), vehicles(*)').eq('company_id', companyId);
-      } else {
-        response = await client.from('bookings').select('*, drivers(*), vehicles(*)');
+      if (user == null) {
+        state = state.copyWith(bookings: [], isLoading: false);
+        return;
+      }
+
+      final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+      final companyId = profileRes?['company_id']?.toString();
+
+      dynamic response;
+      try {
+        var query = client.from('bookings').select('*, drivers(*), vehicles(*)');
+        if (companyId != null && companyId.isNotEmpty) {
+          response = await query.eq('company_id', companyId).order('created_at', ascending: false);
+        } else {
+          response = await query.order('created_at', ascending: false);
+        }
+      } catch (_) {
+        var query = client.from('bookings').select('*, drivers(*), vehicles(*)');
+        if (companyId != null && companyId.isNotEmpty) {
+          response = await query.eq('company_id', companyId);
+        } else {
+          response = await query;
+        }
       }
 
       final fetched = (response as List)
