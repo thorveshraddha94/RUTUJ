@@ -90,21 +90,21 @@ class DriverModel {
   factory DriverModel.fromSupabase(Map<String, dynamic> json) {
     VehicleModel? v;
     if (json['vehicles'] != null) {
-      if (json['vehicles'] is List && (json['vehicles'] as List).isNotEmpty) {
-        v = VehicleModel.fromSupabase((json['vehicles'] as List).first as Map<String, dynamic>);
-      } else if (json['vehicles'] is Map<String, dynamic>) {
-        v = VehicleModel.fromSupabase(json['vehicles'] as Map<String, dynamic>);
+      if (json['vehicles'] is Map) {
+        v = VehicleModel.fromSupabase(Map<String, dynamic>.from(json['vehicles'] as Map));
+      } else if (json['vehicles'] is List && (json['vehicles'] as List).isNotEmpty) {
+        v = VehicleModel.fromSupabase(Map<String, dynamic>.from((json['vehicles'] as List).first as Map));
       }
-    } else if (json['vehicle'] != null) {
-      v = VehicleModel.fromSupabase(json['vehicle'] as Map<String, dynamic>);
+    } else if (json['vehicle'] != null && json['vehicle'] is Map) {
+      v = VehicleModel.fromSupabase(Map<String, dynamic>.from(json['vehicle'] as Map));
     }
 
     return DriverModel(
       id: (json['id'] ?? '').toString(),
-      name: (json['full_name'] ?? json['name'] ?? '').toString(),
-      mobile: (json['mobile_number'] ?? json['mobile'] ?? '').toString(),
-      email: json['email'] as String?,
-      username: json['username'] as String?,
+      name: (json['name'] ?? json['full_name'] ?? json['driver_name'] ?? 'Driver').toString(),
+      mobile: (json['mobile'] ?? json['mobile_number'] ?? json['phone'] ?? json['contact_number'] ?? '').toString(),
+      email: json['email']?.toString(),
+      username: json['username']?.toString(),
       status: _statusFromString((json['status'] ?? 'Active (Ready)').toString()),
       upcomingBookingsCount: int.tryParse(json['upcoming_bookings_count']?.toString() ?? '') ??
           int.tryParse(json['upcomingBookingsCount']?.toString() ?? '') ??

@@ -84,69 +84,52 @@ class DriverNotifier extends StateNotifier<DriverState> {
   }
 
   Future<void> fetchDrivers() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final client = Supabase.instance.client;
-      var user = client.auth.currentUser;
+      final response = await client
+          .from('drivers')
+          .select('*, vehicles(*)')
+          .order('created_at', ascending: false);
 
-      if (user == null && client.auth.currentSession == null) {
-        await Future.delayed(const Duration(milliseconds: 600));
-        user = client.auth.currentUser;
-      }
+      final list = response as List<dynamic>;
+      final parsed = list.map((item) => DriverModel.fromSupabase(Map<String, dynamic>.from(item as Map))).toList();
 
-      if (user == null) {
-        state = state.copyWith(drivers: [], isLoading: false);
-        return;
-      }
-
-      final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
-      final companyId = profileRes?['company_id']?.toString();
-
-      var query = client.from('drivers').select('*, vehicles(*)');
-      if (companyId != null && companyId.isNotEmpty) {
-        query = query.eq('company_id', companyId);
-      }
-
-      final response = await query.order('created_at', ascending: false);
-
-      final fetched = (response as List)
-          .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))
-          .toList();
-      state = state.copyWith(drivers: fetched, isLoading: false);
+      state = state.copyWith(drivers: parsed, isLoading: false);
     } catch (_) {
-      state = state.copyWith(drivers: [], isLoading: false);
+      try {
+        final client = Supabase.instance.client;
+        final fallbackResponse = await client.from('drivers').select('*').order('created_at', ascending: false);
+        final list = fallbackResponse as List<dynamic>;
+        final parsed = list.map((item) => DriverModel.fromSupabase(Map<String, dynamic>.from(item as Map))).toList();
+        state = state.copyWith(drivers: parsed, isLoading: false);
+      } catch (_) {
+        state = state.copyWith(drivers: [], isLoading: false);
+      }
     }
   }
 
   Future<List<DriverModel>> fetchActiveDriversWithVehicles() async {
     try {
       final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      String? companyId;
-      if (user != null) {
-        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
-        companyId = profileRes?['company_id']?.toString();
-      }
-
-      final dynamic response;
-      if (companyId != null && companyId.isNotEmpty) {
-        response = await client
-            .from('drivers')
-            .select('*, vehicles(*)')
-            .eq('company_id', companyId)
-            .or('status.eq.Active (Ready),status.eq.active');
-      } else {
-        response = await client
-            .from('drivers')
-            .select('*, vehicles(*)')
-            .or('status.eq.Active (Ready),status.eq.active');
-      }
+      final response = await client
+          .from('drivers')
+          .select('*, vehicles(*)')
+          .or('status.eq.Active (Ready),status.eq.active');
 
       return (response as List)
-          .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))
+          .map((e) => DriverModel.fromSupabase(Map<String, dynamic>.from(e as Map)))
           .toList();
     } catch (_) {
-      return [];
+      try {
+        final client = Supabase.instance.client;
+        final response = await client.from('drivers').select('*');
+        return (response as List)
+            .map((e) => DriverModel.fromSupabase(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      } catch (_) {
+        return [];
+      }
     }
   }
 
@@ -192,36 +175,47 @@ class DriverNotifier extends StateNotifier<DriverState> {
         companyId = profileRes?['company_id']?.toString();
       }
 
-      // 1. Insert into public.drivers with tenant company_id
+      final regNumber = (vehicleRegistration != null && vehicleRegistration.trim().isNotEmpty)
+          ? vehicleRegistration.trim().toUpperCase()
+          : 'MH-${(10 + (state.drivers.length % 80))}-RT-${1000 + (state.drivers.length * 111)}';
+      final vModel = vehicleModel?.trim().isNotEmpty == true ? vehicleModel!.trim() : 'Sedan';
+      final vMake = vehicleMake?.trim().isNotEmpty == true ? vehicleMake!.trim() : 'Toyota';
+
+      // 1. Insert vehicle into 'vehicles' table
+      final vehicleRes = await client.from('vehicles').insert({
+        'registration_number': regNumber,
+        'plate_number': regNumber,
+        'model': vModel,
+        'make': vMake,
+        'vehicle_category': (vehicleType ?? VehicleType.sedan).name.toUpperCase(),
+        'category': (vehicleType ?? VehicleType.sedan).name,
+        'passenger_capacity': passengerCapacity ?? 4,
+        'luggage_capacity': luggageCapacity ?? 3,
+        'status': 'available',
+        'is_active': status != DriverStatus.inactive,
+        if (companyId != null && companyId.isNotEmpty) 'company_id': companyId,
+      }).select().single();
+
+      final vehicleId = vehicleRes['id']?.toString();
+      vehicle = VehicleModel.fromSupabase(vehicleRes);
+
+      // 2. Insert driver into 'drivers' table linked with vehicle_id
       final driverRes = await client.from('drivers').insert({
+        'name': name,
         'full_name': name,
+        'phone': mobile,
         'mobile_number': mobile,
         if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
         'status': statusStr,
-        if (companyId case final id?) 'company_id': id,
+        if (vehicleId != null) 'vehicle_id': vehicleId,
+        if (companyId != null && companyId.isNotEmpty) 'company_id': companyId,
       }).select().single();
 
       final driverId = (driverRes['id'] ?? '').toString();
 
-      // 2. Insert into public.vehicles using generated driver.id & company_id
-      if (vehicleRegistration != null && vehicleRegistration.trim().isNotEmpty) {
-        final vehicleRes = await client.from('vehicles').insert({
-          'driver_id': driverId,
-          'registration_number': vehicleRegistration.trim().toUpperCase(),
-          'vehicle_category': (vehicleType ?? VehicleType.sedan).name.toUpperCase(),
-          'make': vehicleMake?.trim() ?? 'Toyota',
-          'model': vehicleModel?.trim() ?? 'Sedan',
-          'passenger_capacity': passengerCapacity ?? 4,
-          'luggage_capacity': luggageCapacity ?? 3,
-          'is_active': status != DriverStatus.inactive,
-          if (companyId case final id?) 'company_id': id,
-        }).select().single();
-
-        vehicle = VehicleModel.fromSupabase(vehicleRes);
-        final vehicleId = vehicleRes['id']?.toString();
-        if (vehicleId != null) {
-          await client.from('drivers').update({'vehicle_id': vehicleId}).eq('id', driverId);
-        }
+      // 3. Update vehicle with driver_id for bidirectional link
+      if (vehicleId != null && driverId.isNotEmpty) {
+        await client.from('vehicles').update({'driver_id': driverId}).eq('id', vehicleId);
       }
 
       await fetchDrivers();
