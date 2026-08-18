@@ -136,26 +136,34 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
       dynamic response;
       try {
+        print('🔍 [BookingRepo] Fetching bookings with relational join...');
         var query = client.from('bookings').select('*, drivers(*), vehicles(*)');
         if (companyId != null && companyId.isNotEmpty) {
           response = await query.eq('company_id', companyId).order('created_at', ascending: false);
         } else {
           response = await query.order('created_at', ascending: false);
         }
-      } catch (_) {
-        var query = client.from('bookings').select('*, drivers(*), vehicles(*)');
-        if (companyId != null && companyId.isNotEmpty) {
-          response = await query.eq('company_id', companyId);
-        } else {
-          response = await query;
+      } catch (e, st) {
+        print('❌ [BookingRepo] Relational fetch failed, falling back: $e');
+        try {
+          var query = client.from('bookings').select('*');
+          if (companyId != null && companyId.isNotEmpty) {
+            response = await query.eq('company_id', companyId).order('created_at', ascending: false);
+          } else {
+            response = await query.order('created_at', ascending: false);
+          }
+        } catch (_) {
+          response = [];
         }
       }
 
       final fetched = (response as List)
-          .map((e) => BookingModel.fromSupabase(e as Map<String, dynamic>))
+          .map((e) => BookingModel.fromSupabase(Map<String, dynamic>.from(e as Map)))
           .toList();
+      print('📦 [BookingRepo] Loaded ${fetched.length} bookings successfully.');
       state = state.copyWith(bookings: fetched, isLoading: false);
-    } catch (_) {
+    } catch (e, st) {
+      print('❌ [BookingRepo] Error in fetchBookings: $e');
       state = state.copyWith(bookings: [], isLoading: false);
     }
   }
@@ -166,6 +174,48 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
   void setStatusFilter(BookingStatus? status) {
     state = state.copyWith(statusFilter: status, clearStatusFilter: status == null);
+  }
+
+  Future<void> createBookingFromMap(Map<String, dynamic> data) async {
+    final passengerName = (data['passenger_name'] ?? data['customer_name'] ?? data['guest_name'] ?? 'Passenger').toString();
+    final passengerPhone = (data['passenger_phone'] ?? data['customer_phone'] ?? data['guest_mobile'] ?? '').toString();
+    final pickupLoc = (data['pickup_location'] ?? '').toString();
+    final dropoffLoc = (data['dropoff_location'] ?? data['destination'] ?? '').toString();
+    final pickupTime = (data['pickup_time'] ?? data['pickup_datetime'] ?? DateTime.now().toIso8601String()).toString();
+    final status = (data['status'] ?? data['booking_status'] ?? 'pending').toString();
+    final driverId = data['driver_id']?.toString();
+    final vehicleId = data['vehicle_id']?.toString();
+    final flightNumber = data['flight_number']?.toString();
+    final terminal = data['terminal']?.toString();
+
+    await createBooking(
+      guestName: passengerName,
+      guestMobile: passengerPhone,
+      guestEmail: (data['guest_email'] ?? '').toString(),
+      passengersCount: int.tryParse(data['passengers_count']?.toString() ?? '') ?? 1,
+      luggageCount: int.tryParse(data['luggage_count']?.toString() ?? '') ?? 1,
+      isVip: data['is_vip'] == true,
+      flightNumber: flightNumber ?? '',
+      flightType: (data['flight_type'] ?? 'Arrival').toString(),
+      airport: (data['airport'] ?? '').toString(),
+      terminal: terminal ?? '',
+      flightDate: (data['flight_date'] ?? '').toString(),
+      flightTime: pickupTime,
+      pickupDate: (data['pickup_date'] ?? '').toString(),
+      pickupTime: pickupTime,
+      pickupLocation: pickupLoc,
+      destination: dropoffLoc,
+      destinationAddress: dropoffLoc,
+      vehicleId: vehicleId ?? '',
+      vehicleType: (data['vehicle_type'] ?? 'Sedan').toString(),
+      vehicleReg: (data['vehicle_registration'] ?? '').toString(),
+      driverId: driverId ?? '',
+      driverName: (data['driver_name'] ?? '').toString(),
+      driverMobile: (data['driver_mobile'] ?? '').toString(),
+      reminderDuration: (data['reminder_duration'] ?? '2 hours').toString(),
+      notifyPush: data['notify_push'] != false,
+      notifySms: data['notify_sms'] != false,
+    );
   }
 
   Future<String> createBooking({
@@ -215,8 +265,6 @@ class BookingNotifier extends StateNotifier<BookingState> {
       pickupTime: pickupTime,
     );
 
-    final now = DateTime.now();
-
     try {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
@@ -228,7 +276,9 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
       final insertData = {
         'passenger_name': guestName,
+        'customer_name': guestName,
         'passenger_phone': guestMobile,
+        'customer_phone': guestMobile,
         if (clientReference != null && clientReference.trim().isNotEmpty) 'booking_reference': clientReference.trim(),
         if (internalNotes != null && internalNotes.trim().isNotEmpty) 'notes': internalNotes.trim(),
         'guest_name': guestName,
@@ -247,19 +297,22 @@ class BookingNotifier extends StateNotifier<BookingState> {
         'flight_time': flightTime,
         'pickup_date': pickupDate,
         'pickup_time': pickupTime,
+        'pickup_datetime': pickupDate,
         'pickup_location': pickupLocation,
         if (pickupTerminal != null && pickupTerminal.trim().isNotEmpty) 'pickup_terminal': pickupTerminal.trim(),
         if (pickupNotes != null && pickupNotes.trim().isNotEmpty) 'pickup_notes': pickupNotes.trim(),
         'destination': destination,
         'destination_address': destinationAddress,
+        'dropoff_location': destination,
         if (dropNotes != null && dropNotes.trim().isNotEmpty) 'drop_notes': dropNotes.trim(),
-        'vehicle_id': vehicleId,
+        if (vehicleId.isNotEmpty) 'vehicle_id': vehicleId,
         'vehicle_type': vehicleType,
         'vehicle_registration': vehicleReg,
-        'driver_id': driverId,
+        if (driverId.isNotEmpty) 'driver_id': driverId,
         'driver_name': driverName,
         'driver_mobile': driverMobile,
         'status': 'assigned',
+        'booking_status': 'assigned',
         'reminder_duration': reminderDuration,
         'notify_push': notifyPush,
         'notify_sms': notifySms,
@@ -268,10 +321,36 @@ class BookingNotifier extends StateNotifier<BookingState> {
         if (companyId != null) 'company_id': companyId,
       };
 
-      final response = await client.from('bookings').insert(insertData).select().single();
-      final newBookingId = (response['id'] ?? '').toString();
+      print('🚀 [BookingRepo] Inserting booking payload: $insertData');
+      dynamic response;
+      try {
+        response = await client.from('bookings').insert(insertData).select().single();
+      } catch (e) {
+        print('⚠️ [BookingRepo] Full payload insert error: $e. Retrying with core payload...');
+        final coreData = {
+          'passenger_name': guestName,
+          'customer_name': guestName,
+          'guest_name': guestName,
+          'passenger_phone': guestMobile,
+          'customer_phone': guestMobile,
+          'guest_mobile': guestMobile,
+          'pickup_location': pickupLocation,
+          'dropoff_location': destination,
+          'destination': destination,
+          'status': 'assigned',
+          'booking_status': 'assigned',
+          if (flightNumber.isNotEmpty) 'flight_number': flightNumber,
+          if (terminal.isNotEmpty) 'terminal': terminal,
+          if (vehicleId.isNotEmpty) 'vehicle_id': vehicleId,
+          if (driverId.isNotEmpty) 'driver_id': driverId,
+          if (companyId != null) 'company_id': companyId,
+        };
+        response = await client.from('bookings').insert(coreData).select().single();
+      }
 
-      // Dispatch Client Driver Details Message if enabled
+      final newBookingId = (response['id'] ?? '').toString();
+      print('✅ [BookingRepo] Booking created successfully: $newBookingId');
+
       if (notifyClientDriverDetails && guestMobile.isNotEmpty) {
         final clientMessageText = '''
 Hello $guestName, your transfer has been scheduled!
@@ -299,113 +378,16 @@ Thank you for choosing your airport transfer provider!''';
             bookingId: newBookingId,
           );
 
-      _ref.read(notificationProvider.notifier).scheduleReminder(
-            bookingId: newBookingId,
-            driverId: driverId,
-            durationLabel: reminderDuration,
-            pickupTime: now.add(const Duration(hours: 2)),
-            notifyPush: notifyPush,
-            notifySms: notifySms,
-          );
-
+      // Re-fetch bookings immediately to update state
       await fetchBookings();
-      return newBookingId.isEmpty ? 'AT-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}' : newBookingId;
-    } catch (_) {
-      // Local fallback execution if database endpoint unreachable
-      final fallbackId = 'AT-${1048 + state.bookings.length + 1}';
-      final refCode = 'REF-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-
-      final timeline = [
-        TimelineEventModel(
-          id: 'TL_${now.millisecondsSinceEpoch}_1',
-          title: 'Booking Created',
-          description: 'Booking created by Admin',
-          timestamp: now,
-          iconType: 'create',
-        ),
-        TimelineEventModel(
-          id: 'TL_${now.millisecondsSinceEpoch}_2',
-          title: 'Driver & Vehicle Assigned',
-          description: 'Assigned to $driverName ($vehicleReg)',
-          timestamp: now.add(const Duration(seconds: 1)),
-          iconType: 'assign',
-        ),
-        TimelineEventModel(
-          id: 'TL_${now.millisecondsSinceEpoch}_3',
-          title: 'Driver Notified',
-          description: 'Notification status: ${smsResult.statusMessage}',
-          timestamp: now.add(const Duration(seconds: 2)),
-          iconType: 'notify',
-        ),
-      ];
-
-      final newBooking = BookingModel(
-        id: fallbackId,
-        referenceCode: refCode,
-        clientReference: clientReference,
-        internalNotes: internalNotes,
-        guestName: guestName,
-        guestMobile: guestMobile,
-        guestEmail: guestEmail,
-        passengersCount: passengersCount,
-        luggageCount: luggageCount,
-        isVip: isVip,
-        specialAssistance: specialAssistance,
-        guestNotes: guestNotes,
-        flightNumber: flightNumber,
-        flightType: flightType,
-        airport: airport,
-        terminal: terminal,
-        flightDate: flightDate,
-        flightTime: flightTime,
-        pickupDate: pickupDate,
-        pickupTime: pickupTime,
-        pickupLocation: pickupLocation,
-        pickupTerminal: pickupTerminal,
-        pickupNotes: pickupNotes,
-        destination: destination,
-        destinationAddress: destinationAddress,
-        dropNotes: dropNotes,
-        vehicleId: vehicleId,
-        vehicleType: vehicleType,
-        vehicleRegistration: vehicleReg,
-        driverId: driverId,
-        driverName: driverName,
-        driverMobile: driverMobile,
-        status: BookingStatus.assigned,
-        reminderDuration: reminderDuration,
-        notifyPush: notifyPush,
-        notifySms: notifySms,
-        smsStatus: smsResult.statusMessage,
-        createdAt: now,
-        timeline: timeline,
-      );
-
-      _ref.read(notificationProvider.notifier).addNotification(
-            title: 'New Airport Transfer Assigned',
-            message: 'Booking $fallbackId assigned to $driverName. Guest: $guestName. Pickup: $pickupLocation at $pickupTime.',
-            type: NotificationType.driverAssigned,
-            bookingId: fallbackId,
-          );
-
-      _ref.read(notificationProvider.notifier).scheduleReminder(
-            bookingId: fallbackId,
-            driverId: driverId,
-            durationLabel: reminderDuration,
-            pickupTime: now.add(const Duration(hours: 2)),
-            notifyPush: notifyPush,
-            notifySms: notifySms,
-          );
-
-      state = state.copyWith(
-        bookings: [newBooking, ...state.bookings],
-        isLoading: false,
-      );
-
-      return fallbackId;
+      return newBookingId;
+    } catch (e, st) {
+      print('❌ [BookingRepo] CREATE BOOKING FAILED: $e');
+      print(st);
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      rethrow;
     }
   }
-
 
   Future<void> reassignDriver({
     required String bookingId,
