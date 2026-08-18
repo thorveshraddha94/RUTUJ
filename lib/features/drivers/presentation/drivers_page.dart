@@ -112,10 +112,30 @@ class DriversPage extends ConsumerWidget {
               border: Border.all(color: AppColors.border),
             ),
             child: driverState.filteredDrivers.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(
-                      child: Text('No drivers or vehicles match your search query.', style: TextStyle(color: AppColors.secondaryText)),
+                ? Container(
+                    padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.person_off_outlined, size: 54, color: AppColors.secondaryText),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'No drivers or vehicles found',
+                          style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Add your first driver and linked vehicle profile to assign transfer bookings.',
+                          style: TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                        ),
+                        const SizedBox(height: 18),
+                        ElevatedButton.icon(
+                          onPressed: () => context.go('/admin/drivers/create'),
+                          icon: const Icon(Icons.person_add),
+                          label: const Text('+ Add New Driver & Vehicle'),
+                        ),
+                      ],
                     ),
                   )
                 : SingleChildScrollView(

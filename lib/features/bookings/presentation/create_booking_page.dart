@@ -8,6 +8,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../drivers/data/driver_repository.dart';
 import '../../drivers/domain/driver_model.dart';
 import '../../vehicles/domain/vehicle_model.dart';
+import '../../../core/services/whatsapp_service.dart';
+import '../../tenant/data/tenant_provider.dart';
 import '../data/booking_repository.dart';
 
 class CreateBookingPage extends ConsumerStatefulWidget {
@@ -185,17 +187,104 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _notifyClientDriverDetails
-                  ? 'Booking $newBookingId created & driver details sent to client successfully!'
-                  : 'Booking $newBookingId created and assigned successfully.',
+        if (_notifyClientDriverDetails) {
+          final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Airport Operations';
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              backgroundColor: AppColors.surface,
+              title: const Row(
+                children: [
+                  Icon(Icons.chat, color: AppColors.success, size: 28),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Booking Created Successfully!',
+                      style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Booking reference $newBookingId has been created and assigned.',
+                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('👤 Passenger: ${_guestNameController.text.trim()} (${_guestMobileController.text.trim()})',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryText)),
+                        const SizedBox(height: 4),
+                        Text('👨‍✈️ Driver: ${_selectedDriver!.name} (${_selectedDriver!.mobile})',
+                            style: const TextStyle(fontSize: 12, color: AppColors.primaryText)),
+                        const SizedBox(height: 4),
+                        Text('🚘 Vehicle: ${_selectedVehicle!.make} ${_selectedVehicle!.model} (${_selectedVehicle!.registrationNumber})',
+                            style: const TextStyle(fontSize: 12, color: AppColors.primaryText)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    context.go('/admin/bookings');
+                  },
+                  child: const Text('Go to Bookings List', style: TextStyle(color: AppColors.secondaryText)),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+                    await WhatsAppService.sendDriverDetailsToClient(
+                      clientPhone: _guestMobileController.text.trim(),
+                      clientName: _guestNameController.text.trim(),
+                      companyName: companyName,
+                      pickupLocation: _pickupLocationController.text.trim(),
+                      dropoffLocation: _destinationController.text.trim(),
+                      pickupTime: '${DateFormat('dd MMM yyyy').format(_pickupDate)} at ${_pickupTime.format(context)}',
+                      driverName: _selectedDriver!.name,
+                      driverPhone: _selectedDriver!.mobile,
+                      vehicleModel: '${_selectedVehicle!.make} ${_selectedVehicle!.model}',
+                      plateNumber: _selectedVehicle!.registrationNumber,
+                    );
+                    if (mounted) {
+                      context.go('/admin/bookings/$newBookingId');
+                    }
+                  },
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Open & Send WhatsApp Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        context.go('/admin/bookings/$newBookingId');
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Booking $newBookingId created and assigned successfully.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          context.go('/admin/bookings/$newBookingId');
+        }
       }
     } catch (e) {
       if (mounted) {

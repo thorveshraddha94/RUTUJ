@@ -346,21 +346,32 @@ class DashboardPage extends ConsumerWidget {
             style: const TextStyle(color: AppColors.secondaryText, fontSize: 12),
           ),
           const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: driverState.drivers.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final driver = driverState.drivers[index];
-              return DriverStatusCard(
-                driverName: driver.name,
-                vehicleReg: driver.assignedVehicleReg ?? 'No vehicle assigned',
-                status: driver.status.name.toUpperCase(),
-                currentBookingId: driver.currentTripBookingId,
-              );
-            },
-          ),
+          if (driverState.drivers.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No drivers registered yet.',
+                  style: TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: driverState.drivers.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final driver = driverState.drivers[index];
+                return DriverStatusCard(
+                  driverName: driver.name,
+                  vehicleReg: driver.assignedVehicleReg ?? 'No vehicle assigned',
+                  status: driver.status.name.toUpperCase(),
+                  currentBookingId: driver.currentTripBookingId,
+                );
+              },
+            ),
         ],
       ),
     );

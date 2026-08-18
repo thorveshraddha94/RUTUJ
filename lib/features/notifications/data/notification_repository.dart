@@ -31,50 +31,9 @@ class NotificationState {
 class NotificationNotifier extends StateNotifier<NotificationState> {
   NotificationNotifier()
       : super(
-          NotificationState(
-            notifications: [
-              NotificationModel(
-                id: 'NOTIF-001',
-                title: 'New Airport Transfer Assigned',
-                message: 'Booking AT-1048 assigned to Amit Patel. Guest: Rahul Shah. Pickup: Ahmedabad Airport T2 at 10:00 AM.',
-                bookingId: 'AT-1048',
-                type: NotificationType.driverAssigned,
-                timestamp: DateTime.now().subtract(const Duration(minutes: 25)),
-                isRead: false,
-              ),
-              NotificationModel(
-                id: 'NOTIF-002',
-                title: 'Driver On The Way',
-                message: 'Amit Patel started navigation for pickup at Ahmedabad Airport T2.',
-                bookingId: 'AT-1048',
-                type: NotificationType.driverOnTheWay,
-                timestamp: DateTime.now().subtract(const Duration(minutes: 10)),
-                isRead: false,
-              ),
-              NotificationModel(
-                id: 'NOTIF-003',
-                title: 'Reminder Scheduled',
-                message: 'Reminder set for 2 hours before pickup for booking AT-1049.',
-                bookingId: 'AT-1049',
-                type: NotificationType.reminderSent,
-                timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-                isRead: true,
-              ),
-            ],
-            reminders: [
-              ReminderModel(
-                id: 'REM-001',
-                bookingId: 'AT-1048',
-                driverId: 'DRV-101',
-                durationLabel: '2 hours',
-                scheduledTime: DateTime.now().subtract(const Duration(hours: 2)),
-                pickupTime: DateTime.now().add(const Duration(hours: 1)),
-                notifyPush: true,
-                notifySms: true,
-                status: 'Sent',
-                sentAt: DateTime.now().subtract(const Duration(hours: 2)),
-              ),
-            ],
+          const NotificationState(
+            notifications: [],
+            reminders: [],
           ),
         );
 

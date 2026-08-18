@@ -5,7 +5,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../data/booking_repository.dart';
 import '../domain/booking_model.dart';
-import '../../dashboard/presentation/widgets/reassign_driver_dialog.dart';
+import '../../../core/services/whatsapp_service.dart';
+import '../../tenant/data/tenant_provider.dart';
 import 'cancel_booking_dialog.dart';
 
 class BookingsListPage extends ConsumerWidget {
@@ -100,13 +101,30 @@ class BookingsListPage extends ConsumerWidget {
               border: Border.all(color: AppColors.border),
             ),
             child: bookingState.filteredBookings.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(
-                      child: Text(
-                        'No bookings match the selected criteria.',
-                        style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
-                      ),
+                ? Container(
+                    padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.airport_shuttle_outlined, size: 54, color: AppColors.secondaryText),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'No bookings found',
+                          style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Create a new airport transfer booking to populate your operations schedule.',
+                          style: TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                        ),
+                        const SizedBox(height: 18),
+                        ElevatedButton.icon(
+                          onPressed: () => context.go('/admin/bookings/create'),
+                          icon: const Icon(Icons.add),
+                          label: const Text('+ Create First Booking'),
+                        ),
+                      ],
                     ),
                   )
                 : SingleChildScrollView(
@@ -175,17 +193,27 @@ class BookingsListPage extends ConsumerWidget {
                                     onPressed: () => context.go('/admin/bookings/${b.id}'),
                                     tooltip: 'View Booking',
                                   ),
-                                  if (b.status != BookingStatus.cancelled && b.status != BookingStatus.completed) ...[
+                                  if (b.driverName != null && b.driverMobile != null)
                                     IconButton(
-                                      icon: const Icon(Icons.person_add_alt_1_outlined, size: 18, color: AppColors.warning),
+                                      icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),
                                       onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => ReassignDriverDialog(bookingId: b.id),
+                                        final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Airport Operations';
+                                        WhatsAppService.sendDriverDetailsToClient(
+                                          clientPhone: b.guestMobile,
+                                          clientName: b.guestName,
+                                          companyName: companyName,
+                                          pickupLocation: b.pickupLocation,
+                                          dropoffLocation: b.destination,
+                                          pickupTime: '${b.pickupDate} at ${b.pickupTime}',
+                                          driverName: b.driverName!,
+                                          driverPhone: b.driverMobile!,
+                                          vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
+                                          plateNumber: b.vehicleRegistration ?? 'N/A',
                                         );
                                       },
-                                      tooltip: 'Reassign Driver',
+                                      tooltip: 'Send WhatsApp Details',
                                     ),
+                                  if (b.status != BookingStatus.cancelled && b.status != BookingStatus.completed) ...[
                                     IconButton(
                                       icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.danger),
                                       onPressed: () {

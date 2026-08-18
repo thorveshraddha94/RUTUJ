@@ -81,155 +81,26 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
   BookingNotifier(this._ref, this._smsService)
       : super(
-          BookingState(
-            bookings: [
-              BookingModel(
-                id: 'AT-1048',
-                referenceCode: 'REF-884920',
-                clientName: 'Reliance Industries Ltd.',
-                clientContact: '+91 22 2286 5000',
-                clientReference: 'PO-2026-88',
-                internalNotes: 'VIP Executive Pick up - Priority gate clearance required.',
-                guestName: 'Rahul Shah',
-                guestMobile: '+91 98980 12345',
-                guestEmail: 'rahul.shah@reliance.com',
-                passengersCount: 2,
-                luggageCount: 2,
-                isVip: true,
-                specialAssistance: 'Wheelchair assistance requested',
-                guestNotes: 'Will be holding a black leather briefcase',
-                flightNumber: 'AI-542',
-                flightType: 'Arrival',
-                airport: 'Ahmedabad International (AMD)',
-                terminal: 'Terminal 2',
-                flightDate: '14 Aug 2026',
-                flightTime: '09:45 AM',
-                pickupDate: '14 Aug 2026',
-                pickupTime: '10:00 AM',
-                pickupLocation: 'Ahmedabad Airport T2 Arrival Exit',
-                pickupTerminal: 'Terminal 2',
-                pickupNotes: 'Driver should wait at Gate 3 with nameplate',
-                destination: 'Courtyard by Marriott',
-                destinationAddress: 'Ramdev Nagar Cross Road, Satellite, Ahmedabad',
-                dropNotes: 'Deliver luggage to front concierge desk',
-                vehicleId: 'VEH-001',
-                vehicleType: 'Sedan',
-                vehicleRegistration: 'GJ-01-AB-1234',
-                driverId: 'DRV-101',
-                driverName: 'Amit Patel',
-                driverMobile: '+91 98765 43210',
-                status: BookingStatus.onTheWayToPickup,
-                reminderDuration: '2 hours',
-                notifyPush: true,
-                notifySms: true,
-                smsStatus: 'SMS Pending (Provider not configured)',
-                createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-                timeline: [
-                  TimelineEventModel(
-                    id: 'TL-101',
-                    title: 'Booking Created',
-                    description: 'Booking created by Admin (ADM-001)',
-                    timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-                    iconType: 'create',
-                  ),
-                  TimelineEventModel(
-                    id: 'TL-102',
-                    title: 'Driver & Vehicle Assigned',
-                    description: 'Assigned to Amit Patel (GJ-01-AB-1234)',
-                    timestamp: DateTime.now().subtract(const Duration(hours: 2, minutes: 45)),
-                    iconType: 'assign',
-                  ),
-                  TimelineEventModel(
-                    id: 'TL-103',
-                    title: 'Driver Notified',
-                    description: 'Push notification & SMS sent to driver',
-                    timestamp: DateTime.now().subtract(const Duration(hours: 2, minutes: 40)),
-                    iconType: 'notify',
-                  ),
-                  TimelineEventModel(
-                    id: 'TL-104',
-                    title: 'Driver Accepted',
-                    description: 'Amit Patel confirmed booking assignment',
-                    timestamp: DateTime.now().subtract(const Duration(hours: 2, minutes: 30)),
-                    iconType: 'accept',
-                  ),
-                  TimelineEventModel(
-                    id: 'TL-105',
-                    title: 'On the Way to Pickup',
-                    description: 'Driver started navigation to Ahmedabad Airport T2',
-                    timestamp: DateTime.now().subtract(const Duration(minutes: 20)),
-                    iconType: 'navigation',
-                  ),
-                ],
-              ),
-              BookingModel(
-                id: 'AT-1049',
-                referenceCode: 'REF-992314',
-                clientName: 'Adani Group',
-                clientContact: '+91 79 2656 5555',
-                guestName: 'Priya Sharma',
-                guestMobile: '+91 97234 11223',
-                guestEmail: 'priya.sharma@adani.com',
-                passengersCount: 1,
-                luggageCount: 1,
-                isVip: false,
-                flightNumber: '6E-201',
-                flightType: 'Departure',
-                airport: 'Ahmedabad International (AMD)',
-                terminal: 'Terminal 1',
-                flightDate: '14 Aug 2026',
-                flightTime: '04:30 PM',
-                pickupDate: '14 Aug 2026',
-                pickupTime: '02:00 PM',
-                pickupLocation: 'Hyatt Regency, Ashram Road',
-                destination: 'Ahmedabad Airport T1 Departure',
-                destinationAddress: 'Hansol, Ahmedabad',
-                vehicleId: 'VEH-002',
-                vehicleType: 'SUV',
-                vehicleRegistration: 'GJ-01-CD-5678',
-                driverId: 'DRV-102',
-                driverName: 'Vikram Singh',
-                driverMobile: '+91 98234 56789',
-                status: BookingStatus.assigned,
-                reminderDuration: '2 hours',
-                createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-                timeline: [
-                  TimelineEventModel(
-                    id: 'TL-201',
-                    title: 'Booking Created',
-                    description: 'Booking created by Admin',
-                    timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-                    iconType: 'create',
-                  ),
-                  TimelineEventModel(
-                    id: 'TL-202',
-                    title: 'Driver Assigned',
-                    description: 'Assigned to Vikram Singh',
-                    timestamp: DateTime.now().subtract(const Duration(minutes: 50)),
-                    iconType: 'assign',
-                  ),
-                ],
-              ),
-            ],
+          const BookingState(
+            bookings: [],
           ),
         ) {
     fetchBookings();
   }
 
   Future<void> fetchBookings() async {
+    state = state.copyWith(isLoading: true);
     try {
       final response = await Supabase.instance.client
           .from('bookings')
           .select('*');
 
-      if (response.isNotEmpty) {
-        final fetched = response
-            .map((e) => BookingModel.fromSupabase(e))
-            .toList();
-        state = state.copyWith(bookings: fetched, isLoading: false);
-      }
+      final fetched = (response as List)
+          .map((e) => BookingModel.fromSupabase(e as Map<String, dynamic>))
+          .toList();
+      state = state.copyWith(bookings: fetched, isLoading: false);
     } catch (_) {
-      // Fallback to local default bookings if table missing or offline
+      state = state.copyWith(bookings: [], isLoading: false);
     }
   }
 
@@ -384,7 +255,7 @@ Thank you for choosing your airport transfer provider!''';
           );
 
       await fetchBookings();
-      return insertedBookingId.isEmpty ? 'AT-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}' : insertedBookingId;
+      return newBookingId.isEmpty ? 'AT-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}' : newBookingId;
     } catch (_) {
       // Local fallback execution if database endpoint unreachable
       final fallbackId = 'AT-${1048 + state.bookings.length + 1}';

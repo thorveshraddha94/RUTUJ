@@ -69,104 +69,25 @@ class DriverNotifier extends StateNotifier<DriverState> {
   DriverNotifier()
       : super(
           const DriverState(
-            drivers: [
-              DriverModel(
-                id: 'DRV-101',
-                name: 'Amit Patel',
-                mobile: '+91 98765 43210',
-                email: 'amit.patel@airporttransfer.com',
-                username: 'amit_p',
-                status: DriverStatus.onTrip,
-                upcomingBookingsCount: 2,
-                currentTripBookingId: 'AT-1048',
-                vehicle: VehicleModel(
-                  id: 'VEH-001',
-                  registrationNumber: 'GJ-01-AB-1234',
-                  type: VehicleType.sedan,
-                  make: 'Toyota',
-                  model: 'Camry Hybrid',
-                  passengerCapacity: 4,
-                  luggageCapacity: 3,
-                  isActive: true,
-                ),
-              ),
-              DriverModel(
-                id: 'DRV-102',
-                name: 'Vikram Singh',
-                mobile: '+91 98234 56789',
-                email: 'vikram.singh@airporttransfer.com',
-                username: 'vikram_s',
-                status: DriverStatus.active,
-                upcomingBookingsCount: 1,
-                vehicle: VehicleModel(
-                  id: 'VEH-002',
-                  registrationNumber: 'GJ-01-CD-5678',
-                  type: VehicleType.suv,
-                  make: 'Toyota',
-                  model: 'Fortuner Legender',
-                  passengerCapacity: 6,
-                  luggageCapacity: 5,
-                  isActive: true,
-                ),
-              ),
-              DriverModel(
-                id: 'DRV-103',
-                name: 'Rajesh Sharma',
-                mobile: '+91 97123 45678',
-                email: 'rajesh.sharma@airporttransfer.com',
-                username: 'rajesh_s',
-                status: DriverStatus.active,
-                upcomingBookingsCount: 0,
-                vehicle: VehicleModel(
-                  id: 'VEH-003',
-                  registrationNumber: 'GJ-01-EF-9012',
-                  type: VehicleType.luxury,
-                  make: 'Mercedes-Benz',
-                  model: 'E-Class',
-                  passengerCapacity: 3,
-                  luggageCapacity: 3,
-                  isActive: true,
-                ),
-              ),
-              DriverModel(
-                id: 'DRV-104',
-                name: 'Suresh Kumar',
-                mobile: '+91 96543 21098',
-                email: 'suresh.k@airporttransfer.com',
-                username: 'suresh_k',
-                status: DriverStatus.inactive,
-                upcomingBookingsCount: 0,
-                vehicle: VehicleModel(
-                  id: 'VEH-004',
-                  registrationNumber: 'GJ-01-GH-3456',
-                  type: VehicleType.van,
-                  make: 'Kia',
-                  model: 'Carnival Limousine',
-                  passengerCapacity: 7,
-                  luggageCapacity: 6,
-                  isActive: false,
-                ),
-              ),
-            ],
+            drivers: [],
           ),
         ) {
     fetchDrivers();
   }
 
   Future<void> fetchDrivers() async {
+    state = state.copyWith(isLoading: true);
     try {
       final response = await Supabase.instance.client
           .from('drivers')
           .select('*, vehicles(*)');
 
-      if (response.isNotEmpty) {
-        final fetched = response
-            .map((e) => DriverModel.fromSupabase(e))
-            .toList();
-        state = state.copyWith(drivers: fetched, isLoading: false);
-      }
+      final fetched = (response as List)
+          .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))
+          .toList();
+      state = state.copyWith(drivers: fetched, isLoading: false);
     } catch (_) {
-      // Graceful fallback if Supabase table is unavailable or offline
+      state = state.copyWith(drivers: [], isLoading: false);
     }
   }
 
@@ -177,13 +98,12 @@ class DriverNotifier extends StateNotifier<DriverState> {
           .select('*, vehicles(*)')
           .or('status.eq.Active (Ready),status.eq.active');
 
-      if (response.isNotEmpty) {
-        return response
-            .map((e) => DriverModel.fromSupabase(e))
-            .toList();
-      }
-    } catch (_) {}
-    return state.activeDrivers;
+      return (response as List)
+          .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   void setSearchQuery(String query) {
