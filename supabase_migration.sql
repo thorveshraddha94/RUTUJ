@@ -126,21 +126,33 @@ CREATE POLICY "Allow authenticated select profiles"
     ON public.profiles FOR SELECT
     USING (true);
 
--- Data Tables Policies
-DROP POLICY IF EXISTS "Tenant isolation for drivers SELECT" ON public.drivers;
-CREATE POLICY "Tenant isolation for drivers SELECT" ON public.drivers FOR SELECT USING (true);
+-- 5. Multi-Tenant Helper & RLS Policies
+CREATE OR REPLACE FUNCTION public.get_current_company_id()
+RETURNS UUID AS $$ SELECT company_id FROM public.profiles WHERE id = auth.uid(); $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
-DROP POLICY IF EXISTS "Tenant isolation for drivers INSERT" ON public.drivers;
-CREATE POLICY "Tenant isolation for drivers INSERT" ON public.drivers FOR INSERT WITH CHECK (true);
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.drivers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.message_logs ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Tenant isolation for vehicles SELECT" ON public.vehicles;
-CREATE POLICY "Tenant isolation for vehicles SELECT" ON public.vehicles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Tenant Isolation for Drivers" ON public.drivers;
+CREATE POLICY "Tenant Isolation for Drivers" ON public.drivers
+  FOR ALL USING (company_id = public.get_current_company_id())
+  WITH CHECK (company_id = public.get_current_company_id());
 
-DROP POLICY IF EXISTS "Tenant isolation for vehicles INSERT" ON public.vehicles;
-CREATE POLICY "Tenant isolation for vehicles INSERT" ON public.vehicles FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Tenant Isolation for Vehicles" ON public.vehicles;
+CREATE POLICY "Tenant Isolation for Vehicles" ON public.vehicles
+  FOR ALL USING (company_id = public.get_current_company_id())
+  WITH CHECK (company_id = public.get_current_company_id());
 
-DROP POLICY IF EXISTS "Tenant isolation for bookings SELECT" ON public.bookings;
-CREATE POLICY "Tenant isolation for bookings SELECT" ON public.bookings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Tenant Isolation for Bookings" ON public.bookings;
+CREATE POLICY "Tenant Isolation for Bookings" ON public.bookings
+  FOR ALL USING (company_id = public.get_current_company_id())
+  WITH CHECK (company_id = public.get_current_company_id());
 
-DROP POLICY IF EXISTS "Tenant isolation for bookings INSERT" ON public.bookings;
-CREATE POLICY "Tenant isolation for bookings INSERT" ON public.bookings FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Tenant Isolation for Message Logs" ON public.message_logs;
+CREATE POLICY "Tenant Isolation for Message Logs" ON public.message_logs
+  FOR ALL USING (company_id = public.get_current_company_id())
+  WITH CHECK (company_id = public.get_current_company_id());

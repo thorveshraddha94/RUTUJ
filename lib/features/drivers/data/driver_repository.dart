@@ -78,9 +78,20 @@ class DriverNotifier extends StateNotifier<DriverState> {
   Future<void> fetchDrivers() async {
     state = state.copyWith(isLoading: true);
     try {
-      final response = await Supabase.instance.client
-          .from('drivers')
-          .select('*, vehicles(*)');
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      String? companyId;
+      if (user != null) {
+        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        companyId = profileRes?['company_id']?.toString();
+      }
+
+      final dynamic response;
+      if (companyId != null && companyId.isNotEmpty) {
+        response = await client.from('drivers').select('*, vehicles(*)').eq('company_id', companyId);
+      } else {
+        response = await client.from('drivers').select('*, vehicles(*)');
+      }
 
       final fetched = (response as List)
           .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))
@@ -93,10 +104,27 @@ class DriverNotifier extends StateNotifier<DriverState> {
 
   Future<List<DriverModel>> fetchActiveDriversWithVehicles() async {
     try {
-      final response = await Supabase.instance.client
-          .from('drivers')
-          .select('*, vehicles(*)')
-          .or('status.eq.Active (Ready),status.eq.active');
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      String? companyId;
+      if (user != null) {
+        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        companyId = profileRes?['company_id']?.toString();
+      }
+
+      final dynamic response;
+      if (companyId != null && companyId.isNotEmpty) {
+        response = await client
+            .from('drivers')
+            .select('*, vehicles(*)')
+            .eq('company_id', companyId)
+            .or('status.eq.Active (Ready),status.eq.active');
+      } else {
+        response = await client
+            .from('drivers')
+            .select('*, vehicles(*)')
+            .or('status.eq.Active (Ready),status.eq.active');
+      }
 
       return (response as List)
           .map((e) => DriverModel.fromSupabase(e as Map<String, dynamic>))

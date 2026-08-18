@@ -239,13 +239,36 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                   },
                   child: const Text('Go to Bookings List', style: TextStyle(color: AppColors.secondaryText)),
                 ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                  ),
+                  onPressed: () async {
+                    await WhatsAppService.sendTripAssignmentToDriver(
+                      driverPhone: _selectedDriver!.mobile,
+                      driverName: _selectedDriver!.name,
+                      companyName: companyName,
+                      guestName: _guestNameController.text.trim(),
+                      guestPhone: _guestMobileController.text.trim(),
+                      flightNumber: _flightNumberController.text.trim(),
+                      pickupLocation: _pickupLocationController.text.trim(),
+                      dropoffLocation: _destinationController.text.trim(),
+                      scheduledTime: '${DateFormat('dd MMM yyyy').format(_pickupDate)} at ${_pickupTime.format(context)}',
+                      passengersCount: _passengersCount,
+                      luggageCount: _luggageCount,
+                      specialAssistance: _specialAssistanceController.text.trim().isEmpty ? null : _specialAssistanceController.text.trim(),
+                    );
+                  },
+                  icon: const Icon(Icons.badge, size: 16),
+                  label: const Text('Send to Driver'),
+                ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
-                    Navigator.of(dialogContext).pop();
                     await WhatsAppService.sendDriverDetailsToClient(
                       clientPhone: _guestMobileController.text.trim(),
                       clientName: _guestNameController.text.trim(),
@@ -258,12 +281,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                       vehicleModel: '${_selectedVehicle!.make} ${_selectedVehicle!.model}',
                       plateNumber: _selectedVehicle!.registrationNumber,
                     );
-                    if (mounted) {
-                      context.go('/admin/bookings/$newBookingId');
-                    }
                   },
-                  icon: const Icon(Icons.send, size: 18),
-                  label: const Text('Open & Send WhatsApp Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.send, size: 16),
+                  label: const Text('Send to Guest (WhatsApp)', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

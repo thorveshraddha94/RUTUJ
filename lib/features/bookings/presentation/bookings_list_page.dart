@@ -198,17 +198,73 @@ class BookingsListPage extends ConsumerWidget {
                                       icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),
                                       onPressed: () {
                                         final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Airport Operations';
-                                        WhatsAppService.sendDriverDetailsToClient(
-                                          clientPhone: b.guestMobile,
-                                          clientName: b.guestName,
-                                          companyName: companyName,
-                                          pickupLocation: b.pickupLocation,
-                                          dropoffLocation: b.destination,
-                                          pickupTime: '${b.pickupDate} at ${b.pickupTime}',
-                                          driverName: b.driverName!,
-                                          driverPhone: b.driverMobile!,
-                                          vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
-                                          plateNumber: b.vehicleRegistration ?? 'N/A',
+                                        showDialog(
+                                          context: context,
+                                          builder: (dialogContext) => AlertDialog(
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                            title: Row(
+                                              children: [
+                                                const Icon(Icons.chat, color: AppColors.success, size: 24),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    'WhatsApp Dispatch — ${b.id}',
+                                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            content: const Text(
+                                              'Select recipient to dispatch WhatsApp transfer details:',
+                                              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                                            ),
+                                            actions: [
+                                              OutlinedButton.icon(
+                                                onPressed: () {
+                                                  Navigator.of(dialogContext).pop();
+                                                  WhatsAppService.sendTripAssignmentToDriver(
+                                                    driverPhone: b.driverMobile!,
+                                                    driverName: b.driverName!,
+                                                    companyName: companyName,
+                                                    guestName: b.guestName,
+                                                    guestPhone: b.guestMobile,
+                                                    flightNumber: b.flightNumber,
+                                                    pickupLocation: b.pickupLocation,
+                                                    dropoffLocation: b.destination,
+                                                    scheduledTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                    passengersCount: b.passengersCount,
+                                                    luggageCount: b.luggageCount,
+                                                    specialAssistance: b.specialAssistance,
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.badge, size: 16),
+                                                label: Text('Driver (${b.driverName})'),
+                                              ),
+                                              ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: AppColors.success,
+                                                  foregroundColor: Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  Navigator.of(dialogContext).pop();
+                                                  WhatsAppService.sendDriverDetailsToClient(
+                                                    clientPhone: b.guestMobile,
+                                                    clientName: b.guestName,
+                                                    companyName: companyName,
+                                                    pickupLocation: b.pickupLocation,
+                                                    dropoffLocation: b.destination,
+                                                    pickupTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                    driverName: b.driverName!,
+                                                    driverPhone: b.driverMobile!,
+                                                    vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
+                                                    plateNumber: b.vehicleRegistration ?? 'N/A',
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.send, size: 16),
+                                                label: Text('Guest (${b.guestName})'),
+                                              ),
+                                            ],
+                                          ),
                                         );
                                       },
                                       tooltip: 'Send WhatsApp Details',

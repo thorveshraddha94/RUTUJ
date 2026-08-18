@@ -91,9 +91,20 @@ class BookingNotifier extends StateNotifier<BookingState> {
   Future<void> fetchBookings() async {
     state = state.copyWith(isLoading: true);
     try {
-      final response = await Supabase.instance.client
-          .from('bookings')
-          .select('*');
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      String? companyId;
+      if (user != null) {
+        final profileRes = await client.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        companyId = profileRes?['company_id']?.toString();
+      }
+
+      final dynamic response;
+      if (companyId != null && companyId.isNotEmpty) {
+        response = await client.from('bookings').select('*').eq('company_id', companyId);
+      } else {
+        response = await client.from('bookings').select('*');
+      }
 
       final fetched = (response as List)
           .map((e) => BookingModel.fromSupabase(e as Map<String, dynamic>))
