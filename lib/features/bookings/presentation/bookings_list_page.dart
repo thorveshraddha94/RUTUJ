@@ -219,51 +219,77 @@ class BookingsListPage extends ConsumerWidget {
                                               style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                                             ),
                                             actions: [
-                                              OutlinedButton.icon(
-                                                onPressed: () {
-                                                  Navigator.of(dialogContext).pop();
-                                                  WhatsAppService.sendTripAssignmentToDriver(
-                                                    driverPhone: b.driverMobile!,
-                                                    driverName: b.driverName!,
-                                                    companyName: companyName,
-                                                    guestName: b.guestName,
-                                                    guestPhone: b.guestMobile,
-                                                    flightNumber: b.flightNumber,
-                                                    pickupLocation: b.pickupLocation,
-                                                    dropoffLocation: b.destination,
-                                                    scheduledTime: '${b.pickupDate} at ${b.pickupTime}',
-                                                    passengersCount: b.passengersCount,
-                                                    luggageCount: b.luggageCount,
-                                                    specialAssistance: b.specialAssistance,
-                                                  );
-                                                },
-                                                icon: const Icon(Icons.badge, size: 16),
-                                                label: Text('Driver (${b.driverName})'),
-                                              ),
-                                              ElevatedButton.icon(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: AppColors.success,
-                                                  foregroundColor: Colors.white,
-                                                ),
-                                                onPressed: () {
-                                                  Navigator.of(dialogContext).pop();
-                                                  WhatsAppService.sendDriverDetailsToClient(
-                                                    clientPhone: b.guestMobile,
-                                                    clientName: b.guestName,
-                                                    companyName: companyName,
-                                                    pickupLocation: b.pickupLocation,
-                                                    dropoffLocation: b.destination,
-                                                    pickupTime: '${b.pickupDate} at ${b.pickupTime}',
-                                                    driverName: b.driverName!,
-                                                    driverPhone: b.driverMobile!,
-                                                    vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
-                                                    plateNumber: b.vehicleRegistration ?? 'N/A',
-                                                  );
-                                                },
-                                                icon: const Icon(Icons.send, size: 16),
-                                                label: Text('Guest (${b.guestName})'),
-                                              ),
-                                            ],
+                                               OutlinedButton.icon(
+                                                 onPressed: () {
+                                                   Navigator.of(dialogContext).pop();
+                                                   WhatsAppService.sendTripAssignmentToDriver(
+                                                     driverPhone: b.driverMobile!,
+                                                     driverName: b.driverName!,
+                                                     companyName: companyName,
+                                                     guestName: b.guestName,
+                                                     guestPhone: b.guestMobile,
+                                                     flightNumber: b.flightNumber,
+                                                     pickupLocation: b.pickupLocation,
+                                                     dropoffLocation: b.destination,
+                                                     scheduledTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                     passengersCount: b.passengersCount,
+                                                     luggageCount: b.luggageCount,
+                                                     specialAssistance: b.specialAssistance,
+                                                   );
+                                                 },
+                                                 icon: const Icon(Icons.badge, size: 16),
+                                                 label: Text('Driver (${b.driverName})'),
+                                               ),
+                                               OutlinedButton.icon(
+                                                 style: OutlinedButton.styleFrom(
+                                                   foregroundColor: AppColors.success,
+                                                   side: const BorderSide(color: AppColors.success),
+                                                 ),
+                                                 onPressed: () {
+                                                   Navigator.of(dialogContext).pop();
+                                                   WhatsAppService.sendDriverDetailsToClient(
+                                                     clientPhone: b.guestMobile,
+                                                     clientName: b.guestName,
+                                                     companyName: companyName,
+                                                     pickupLocation: b.pickupLocation,
+                                                     dropoffLocation: b.destination,
+                                                     pickupTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                     driverName: b.driverName!,
+                                                     driverPhone: b.driverMobile!,
+                                                     vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
+                                                     plateNumber: b.vehicleRegistration ?? 'N/A',
+                                                   );
+                                                 },
+                                                 icon: const Icon(Icons.person, size: 16),
+                                                 label: Text('Guest (${b.guestName})'),
+                                               ),
+                                               ElevatedButton.icon(
+                                                 style: ElevatedButton.styleFrom(
+                                                   backgroundColor: AppColors.success,
+                                                   foregroundColor: Colors.white,
+                                                 ),
+                                                 onPressed: () {
+                                                   Navigator.of(dialogContext).pop();
+                                                   WhatsAppService.sendToBoth(
+                                                     guestPhone: b.guestMobile,
+                                                     guestName: b.guestName,
+                                                     companyName: companyName,
+                                                     pickupTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                     pickupLocation: b.pickupLocation,
+                                                     dropoffLocation: b.destination,
+                                                     driverPhone: b.driverMobile!,
+                                                     driverName: b.driverName!,
+                                                     vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
+                                                     plateNumber: b.vehicleRegistration ?? 'N/A',
+                                                     flightNumber: b.flightNumber,
+                                                     passengers: b.passengersCount,
+                                                     notes: b.specialAssistance,
+                                                   );
+                                                 },
+                                                 icon: const Icon(Icons.people_alt, size: 16),
+                                                 label: const Text('👥 Send to Both'),
+                                               ),
+                                             ],
                                           ),
                                         );
                                       },

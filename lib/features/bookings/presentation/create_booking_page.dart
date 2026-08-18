@@ -263,10 +263,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                   icon: const Icon(Icons.badge, size: 16),
                   label: const Text('Send to Driver'),
                 ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.success,
+                    side: const BorderSide(color: AppColors.success),
                   ),
                   onPressed: () async {
                     await WhatsAppService.sendDriverDetailsToClient(
@@ -282,8 +282,33 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                       plateNumber: _selectedVehicle!.registrationNumber,
                     );
                   },
-                  icon: const Icon(Icons.send, size: 16),
-                  label: const Text('Send to Guest (WhatsApp)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.person, size: 16),
+                  label: const Text('Send to Guest'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    await WhatsAppService.sendToBoth(
+                      guestPhone: _guestMobileController.text.trim(),
+                      guestName: _guestNameController.text.trim(),
+                      companyName: companyName,
+                      pickupTime: '${DateFormat('dd MMM yyyy').format(_pickupDate)} at ${_pickupTime.format(context)}',
+                      pickupLocation: _pickupLocationController.text.trim(),
+                      dropoffLocation: _destinationController.text.trim(),
+                      driverPhone: _selectedDriver!.mobile,
+                      driverName: _selectedDriver!.name,
+                      vehicleModel: '${_selectedVehicle!.make} ${_selectedVehicle!.model}',
+                      plateNumber: _selectedVehicle!.registrationNumber,
+                      flightNumber: _flightNumberController.text.trim(),
+                      passengers: _passengersCount,
+                      notes: _specialAssistanceController.text.trim().isEmpty ? null : _specialAssistanceController.text.trim(),
+                    );
+                  },
+                  icon: const Icon(Icons.people_alt, size: 18),
+                  label: const Text('👥 Send to Both (All Details)', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

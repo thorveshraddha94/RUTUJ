@@ -7,6 +7,18 @@ class WhatsAppService {
     return cleaned;
   }
 
+  /// Launch WhatsApp with safe UTF-8 query encoding
+  static Future<void> _launchWhatsApp(String phone, String message) async {
+    final cleanNumber = _cleanPhone(phone);
+    final Uri url = Uri.https('wa.me', '/$cleanNumber', {
+      'text': message,
+    });
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
   /// 1. WhatsApp Template sent to the GUEST
   static Future<void> sendToGuest({
     required String guestPhone,
@@ -21,29 +33,24 @@ class WhatsAppService {
     required String plateNumber,
   }) async {
     final message = '''
-🚖 *AIRPORT TRANSFER CONFIRMED*
-━━━━━━━━━━━━━━━━━━━━━
+*TRIP CONFIRMATION*
+----------------------------------------
 Dear *$guestName*, your booking with *$companyName* is confirmed!
 
-⏰ *Pickup Time:* $pickupTime
-📍 *Pickup:* $pickupLocation
-🏁 *Dropoff:* $dropoffLocation
+*Scheduled Time:* $pickupTime
+*Pickup Location:* $pickupLocation
+*Dropoff Location:* $dropoffLocation
 
-👨‍✈️ *YOUR ASSIGNED DRIVER*
-• *Driver:* $driverName
-• *Contact:* $driverPhone
+*DRIVER & VEHICLE DETAILS*
+- *Driver Name:* $driverName
+- *Driver Contact:* $driverPhone
+- *Vehicle Model:* $vehicleModel
+- *License Plate:* $plateNumber
 
-🚘 *VEHICLE DETAILS*
-• *Vehicle:* $vehicleModel
-• *Plate Number:* $plateNumber
+Have a pleasant journey!
+----------------------------------------''';
 
-Have a smooth and pleasant ride! ✨
-━━━━━━━━━━━━━━━━━━━━━''';
-
-    final uri = Uri.parse('https://wa.me/${_cleanPhone(guestPhone)}?text=${Uri.encodeComponent(message)}');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await _launchWhatsApp(guestPhone, message);
   }
 
   /// 2. WhatsApp Template sent to the DRIVER
@@ -61,28 +68,71 @@ Have a smooth and pleasant ride! ✨
     String? notes,
   }) async {
     final message = '''
-🚨 *NEW TRIP ASSIGNMENT*
-━━━━━━━━━━━━━━━━━━━━━
-Hello *$driverName*, you have a new scheduled trip from *$companyName*:
+*NEW TRIP ASSIGNMENT*
+----------------------------------------
+Hello *$driverName*, you have a new trip scheduled from *$companyName*:
 
-⏰ *Pickup Time:* $pickupTime
-📍 *Pickup:* $pickupLocation
-🏁 *Dropoff:* $dropoffLocation
-✈️ *Flight #:* ${flightNumber ?? 'N/A'}
+*Pickup Time:* $pickupTime
+*Pickup Location:* $pickupLocation
+*Dropoff Location:* $dropoffLocation
+*Flight No:* ${flightNumber != null && flightNumber.isNotEmpty ? flightNumber : 'N/A'}
 
-👤 *GUEST INFORMATION*
-• *Guest Name:* $guestName
-• *Guest Phone:* $guestPhone
-• *Passengers / Pax:* ${passengers ?? 1}
-• *Notes:* ${notes ?? 'None'}
+*GUEST INFORMATION*
+- *Guest Name:* $guestName
+- *Guest Contact:* $guestPhone
+- *Passengers / Pax:* ${passengers ?? 1}
+- *Notes:* ${notes != null && notes.isNotEmpty ? notes : 'None'}
 
-Please ensure punctuality and maintain fleet standards. 🚘
-━━━━━━━━━━━━━━━━━━━━━''';
+Please ensure punctuality.
+----------------------------------------''';
 
-    final uri = Uri.parse('https://wa.me/${_cleanPhone(driverPhone)}?text=${Uri.encodeComponent(message)}');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await _launchWhatsApp(driverPhone, message);
+  }
+
+  /// 3. 1-Click WhatsApp Template sent to BOTH Guest and Driver
+  static Future<void> sendToBoth({
+    required String guestPhone,
+    required String guestName,
+    required String companyName,
+    required String pickupTime,
+    required String pickupLocation,
+    required String dropoffLocation,
+    required String driverPhone,
+    required String driverName,
+    required String vehicleModel,
+    required String plateNumber,
+    String? flightNumber,
+    int? passengers,
+    String? notes,
+  }) async {
+    await sendToGuest(
+      guestPhone: guestPhone,
+      guestName: guestName,
+      companyName: companyName,
+      pickupTime: pickupTime,
+      pickupLocation: pickupLocation,
+      dropoffLocation: dropoffLocation,
+      driverName: driverName,
+      driverPhone: driverPhone,
+      vehicleModel: vehicleModel,
+      plateNumber: plateNumber,
+    );
+
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    await sendToDriver(
+      driverPhone: driverPhone,
+      driverName: driverName,
+      companyName: companyName,
+      guestName: guestName,
+      guestPhone: guestPhone,
+      pickupTime: pickupTime,
+      pickupLocation: pickupLocation,
+      dropoffLocation: dropoffLocation,
+      flightNumber: flightNumber,
+      passengers: passengers,
+      notes: notes,
+    );
   }
 
   /// Legacy Alias Helpers for compatibility
