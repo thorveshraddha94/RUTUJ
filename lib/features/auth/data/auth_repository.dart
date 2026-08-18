@@ -98,9 +98,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
         await _ref.read(tenantProvider.notifier).loadTenant();
         return true;
       }
-    } catch (_) {
-      // Fallback local admin check if Supabase authentication endpoint fails/offline
-    }
+    } on AuthException catch (e) {
+      if (e.message.toLowerCase().contains('email not confirmed')) {
+        state = AuthState(
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: 'Email unconfirmed. Please check your inbox or try logging in again.',
+        );
+        return false;
+      }
+      // If AuthException is invalid credentials, test local fallback first before showing error
+    } catch (_) {}
 
     if ((identifier.toLowerCase() == 'admin' || identifier.toLowerCase() == 'admin@airporttransfer.com') &&
         password == 'admin123') {

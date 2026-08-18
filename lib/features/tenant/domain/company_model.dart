@@ -12,7 +12,7 @@ class CompanyModel {
   factory CompanyModel.fromSupabase(Map<String, dynamic> json) {
     return CompanyModel(
       id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'Airport Transfer Operations',
+      name: json['company_name']?.toString() ?? json['name']?.toString() ?? 'Airport Operations',
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
     );
   }
@@ -20,7 +20,7 @@ class CompanyModel {
   Map<String, dynamic> toSupabase() {
     return {
       if (id.isNotEmpty) 'id': id,
-      'name': name,
+      'company_name': name,
     };
   }
 

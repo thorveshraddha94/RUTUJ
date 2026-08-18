@@ -68,10 +68,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
       String companyId = 'COMP-${DateTime.now().millisecondsSinceEpoch}';
 
-      // 2. Insert into public.companies
+      // 2. Defensive manual insert into public.companies (if trigger is missing)
       try {
         final companyRes = await client.from('companies').insert({
-          'name': companyName,
+          'company_name': companyName,
         }).select().single();
         companyId = (companyRes['id'] ?? companyId).toString();
       } catch (_) {}
