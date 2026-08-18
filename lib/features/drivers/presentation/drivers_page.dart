@@ -171,7 +171,24 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                         final vehicle = driver.vehicle;
                         return DataRow(
                           cells: [
-                            DataCell(Text(driver.id, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold))),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  driver.displayCode,
+                                  style: const TextStyle(
+                                    color: Color(0xFF60A5FA),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
                             DataCell(
                               Row(
                                 children: [

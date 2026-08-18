@@ -4,6 +4,7 @@ enum DriverStatus { active, inactive, onTrip }
 
 class DriverModel {
   final String id;
+  final String? driverCode;
   final String name;
   final String mobile;
   final String? email;
@@ -16,6 +17,7 @@ class DriverModel {
 
   const DriverModel({
     required this.id,
+    this.driverCode,
     required this.name,
     required this.mobile,
     this.email,
@@ -26,6 +28,16 @@ class DriverModel {
     String? assignedVehicleReg,
     this.vehicle,
   }) : rawAssignedVehicleReg = assignedVehicleReg;
+
+  String get displayCode {
+    if (driverCode != null && driverCode!.isNotEmpty) return driverCode!;
+    if (id.isEmpty) return 'DRV-1001';
+    if (id.startsWith('DRV-')) return id;
+    if (id.length >= 8) {
+      return 'DRV-${id.substring(0, 6).toUpperCase()}';
+    }
+    return 'DRV-$id';
+  }
 
   String? get assignedVehicleReg => vehicle?.registrationNumber ?? rawAssignedVehicleReg;
 
@@ -101,6 +113,7 @@ class DriverModel {
 
     return DriverModel(
       id: (json['id'] ?? '').toString(),
+      driverCode: json['driver_code']?.toString() ?? json['driverCode']?.toString(),
       name: (json['name'] ?? json['full_name'] ?? json['driver_name'] ?? 'Driver').toString(),
       mobile: (json['mobile'] ?? json['mobile_number'] ?? json['phone'] ?? json['contact_number'] ?? '').toString(),
       email: json['email']?.toString(),

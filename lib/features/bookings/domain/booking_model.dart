@@ -57,6 +57,18 @@ class BookingModel {
   String get clientName => guestName;
   String get clientContact => guestMobile;
 
+  String get displayCode {
+    if (referenceCode.isNotEmpty && !referenceCode.startsWith('REF-') && referenceCode.length <= 12) {
+      return referenceCode;
+    }
+    if (id.isEmpty) return 'BK-5001';
+    if (id.startsWith('BK-') || id.startsWith('AT-')) return id;
+    if (id.length >= 8) {
+      return 'BK-${id.substring(0, 6).toUpperCase()}';
+    }
+    return 'BK-$id';
+  }
+
   // Flight Details
   final String flightNumber;
   final String flightType; // 'Arrival' or 'Departure'
@@ -337,7 +349,7 @@ class BookingModel {
 
     return BookingModel(
       id: (json['id'] ?? '').toString(),
-      referenceCode: (json['booking_reference'] ?? json['reference_code'] ?? json['referenceCode'] ?? 'REF-${json['id']}').toString(),
+      referenceCode: (json['booking_code'] ?? json['booking_reference'] ?? json['reference_code'] ?? json['referenceCode'] ?? 'REF-${json['id']}').toString(),
       clientReference: json['booking_reference'] as String? ?? json['client_reference'] as String? ?? json['clientReference'] as String?,
       internalNotes: json['notes'] as String? ?? json['internal_notes'] as String? ?? json['internalNotes'] as String?,
       guestName: (json['passenger_name'] ?? json['guest_name'] ?? json['guestName'] ?? json['client_name'] ?? '').toString(),
