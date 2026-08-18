@@ -41,21 +41,21 @@ class BookingModel {
   final String id;
   final String referenceCode;
   
-  // Client Details
-  final String clientName;
-  final String clientContact;
-  final String? clientReference;
-  final String? internalNotes;
-
-  // Guest Details
+  // Passenger / Guest Details
   final String guestName;
   final String guestMobile;
   final String guestEmail;
+  final String? clientReference; // booking_reference / PO #
+  final String? internalNotes;    // notes / operations notes
   final int passengersCount;
   final int luggageCount;
   final bool isVip;
   final String? specialAssistance;
   final String? guestNotes;
+
+  // Compatibility getters for legacy callers
+  String get clientName => guestName;
+  String get clientContact => guestMobile;
 
   // Flight Details
   final String flightNumber;
@@ -99,8 +99,6 @@ class BookingModel {
   const BookingModel({
     required this.id,
     required this.referenceCode,
-    required this.clientName,
-    required this.clientContact,
     this.clientReference,
     this.internalNotes,
     required this.guestName,
@@ -190,8 +188,6 @@ class BookingModel {
     return BookingModel(
       id: id ?? this.id,
       referenceCode: referenceCode ?? this.referenceCode,
-      clientName: clientName ?? this.clientName,
-      clientContact: clientContact ?? this.clientContact,
       clientReference: clientReference ?? this.clientReference,
       internalNotes: internalNotes ?? this.internalNotes,
       guestName: guestName ?? this.guestName,
@@ -237,32 +233,30 @@ class BookingModel {
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(
       id: json['id'] as String,
-      referenceCode: json['referenceCode'] as String,
-      clientName: json['clientName'] as String,
-      clientContact: json['clientContact'] as String,
+      referenceCode: json['referenceCode'] as String? ?? 'REF-${json['id']}',
       clientReference: json['clientReference'] as String?,
       internalNotes: json['internalNotes'] as String?,
-      guestName: json['guestName'] as String,
-      guestMobile: json['guestMobile'] as String,
-      guestEmail: json['guestEmail'] as String,
+      guestName: json['guestName'] as String? ?? json['clientName'] as String? ?? '',
+      guestMobile: json['guestMobile'] as String? ?? json['clientContact'] as String? ?? '',
+      guestEmail: json['guestEmail'] as String? ?? '',
       passengersCount: json['passengersCount'] as int? ?? 1,
       luggageCount: json['luggageCount'] as int? ?? 1,
       isVip: json['isVip'] as bool? ?? false,
       specialAssistance: json['specialAssistance'] as String?,
       guestNotes: json['guestNotes'] as String?,
-      flightNumber: json['flightNumber'] as String,
+      flightNumber: json['flightNumber'] as String? ?? '',
       flightType: json['flightType'] as String? ?? 'Arrival',
-      airport: json['airport'] as String,
-      terminal: json['terminal'] as String,
-      flightDate: json['flightDate'] as String,
-      flightTime: json['flightTime'] as String,
-      pickupDate: json['pickupDate'] as String,
-      pickupTime: json['pickupTime'] as String,
-      pickupLocation: json['pickupLocation'] as String,
+      airport: json['airport'] as String? ?? '',
+      terminal: json['terminal'] as String? ?? '',
+      flightDate: json['flightDate'] as String? ?? '',
+      flightTime: json['flightTime'] as String? ?? '',
+      pickupDate: json['pickupDate'] as String? ?? '',
+      pickupTime: json['pickupTime'] as String? ?? '',
+      pickupLocation: json['pickupLocation'] as String? ?? '',
       pickupTerminal: json['pickupTerminal'] as String?,
       pickupNotes: json['pickupNotes'] as String?,
-      destination: json['destination'] as String,
-      destinationAddress: json['destinationAddress'] as String,
+      destination: json['destination'] as String? ?? '',
+      destinationAddress: json['destinationAddress'] as String? ?? '',
       dropNotes: json['dropNotes'] as String?,
       vehicleId: json['vehicleId'] as String?,
       vehicleType: json['vehicleType'] as String?,
@@ -270,13 +264,13 @@ class BookingModel {
       driverId: json['driverId'] as String?,
       driverName: json['driverName'] as String?,
       driverMobile: json['driverMobile'] as String?,
-      status: _statusFromString(json['status'] as String),
+      status: _statusFromString(json['status'] as String? ?? 'pending'),
       reminderDuration: json['reminderDuration'] as String?,
       notifyPush: json['notifyPush'] as bool? ?? true,
       notifySms: json['notifySms'] as bool? ?? true,
       notifyClientDriverDetails: json['notifyClientDriverDetails'] as bool? ?? true,
       smsStatus: json['smsStatus'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : DateTime.now(),
       cancellationReason: json['cancellationReason'] as String?,
       timeline: (json['timeline'] as List<dynamic>?)
               ?.map((e) => TimelineEventModel.fromJson(e as Map<String, dynamic>))
@@ -288,8 +282,6 @@ class BookingModel {
   Map<String, dynamic> toJson() => {
         'id': id,
         'referenceCode': referenceCode,
-        'clientName': clientName,
-        'clientContact': clientContact,
         'clientReference': clientReference,
         'internalNotes': internalNotes,
         'guestName': guestName,
@@ -334,13 +326,11 @@ class BookingModel {
   factory BookingModel.fromSupabase(Map<String, dynamic> json) {
     return BookingModel(
       id: (json['id'] ?? '').toString(),
-      referenceCode: (json['reference_code'] ?? json['referenceCode'] ?? 'REF-${json['id']}').toString(),
-      clientName: (json['client_name'] ?? json['clientName'] ?? '').toString(),
-      clientContact: (json['client_contact'] ?? json['clientContact'] ?? '').toString(),
-      clientReference: json['client_reference'] as String? ?? json['clientReference'] as String?,
-      internalNotes: json['internal_notes'] as String? ?? json['internalNotes'] as String?,
-      guestName: (json['guest_name'] ?? json['guestName'] ?? '').toString(),
-      guestMobile: (json['guest_mobile'] ?? json['guestMobile'] ?? '').toString(),
+      referenceCode: (json['booking_reference'] ?? json['reference_code'] ?? json['referenceCode'] ?? 'REF-${json['id']}').toString(),
+      clientReference: json['booking_reference'] as String? ?? json['client_reference'] as String? ?? json['clientReference'] as String?,
+      internalNotes: json['notes'] as String? ?? json['internal_notes'] as String? ?? json['internalNotes'] as String?,
+      guestName: (json['passenger_name'] ?? json['guest_name'] ?? json['guestName'] ?? json['client_name'] ?? '').toString(),
+      guestMobile: (json['passenger_phone'] ?? json['guest_mobile'] ?? json['guestMobile'] ?? json['client_contact'] ?? '').toString(),
       guestEmail: (json['guest_email'] ?? json['guestEmail'] ?? '').toString(),
       passengersCount: int.tryParse(json['passengers_count']?.toString() ?? '') ??
           int.tryParse(json['passengersCount']?.toString() ?? '') ??
@@ -391,10 +381,10 @@ class BookingModel {
   }
 
   Map<String, dynamic> toSupabase() => {
-        'client_name': clientName,
-        'client_contact': clientContact,
-        if (clientReference != null) 'client_reference': clientReference,
-        if (internalNotes != null) 'internal_notes': internalNotes,
+        'passenger_name': guestName,
+        'passenger_phone': guestMobile,
+        if (clientReference != null) 'booking_reference': clientReference,
+        if (internalNotes != null) 'notes': internalNotes,
         'guest_name': guestName,
         'guest_mobile': guestMobile,
         'guest_email': guestEmail,

@@ -113,8 +113,6 @@ class BookingNotifier extends StateNotifier<BookingState> {
   }
 
   Future<String> createBooking({
-    required String clientName,
-    required String clientContact,
     String? clientReference,
     String? internalNotes,
     required String guestName,
@@ -173,10 +171,10 @@ class BookingNotifier extends StateNotifier<BookingState> {
       }
 
       final insertData = {
-        'client_name': clientName,
-        'client_contact': clientContact,
-        if (clientReference != null && clientReference.trim().isNotEmpty) 'client_reference': clientReference.trim(),
-        if (internalNotes != null && internalNotes.trim().isNotEmpty) 'internal_notes': internalNotes.trim(),
+        'passenger_name': guestName,
+        'passenger_phone': guestMobile,
+        if (clientReference != null && clientReference.trim().isNotEmpty) 'booking_reference': clientReference.trim(),
+        if (internalNotes != null && internalNotes.trim().isNotEmpty) 'notes': internalNotes.trim(),
         'guest_name': guestName,
         'guest_mobile': guestMobile,
         'guest_email': guestEmail,
@@ -288,8 +286,6 @@ Thank you for choosing your airport transfer provider!''';
       final newBooking = BookingModel(
         id: fallbackId,
         referenceCode: refCode,
-        clientName: clientName,
-        clientContact: clientContact,
         clientReference: clientReference,
         internalNotes: internalNotes,
         guestName: guestName,

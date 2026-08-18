@@ -31,6 +31,17 @@ ALTER TABLE public.bookings
 ALTER TABLE public.bookings 
     ADD COLUMN IF NOT EXISTS notify_client_driver_details BOOLEAN DEFAULT true;
 
+ALTER TABLE public.bookings
+    DROP COLUMN IF EXISTS client_name,
+    DROP COLUMN IF EXISTS client_contact,
+    DROP COLUMN IF EXISTS client_phone;
+
+ALTER TABLE public.bookings
+    ADD COLUMN IF NOT EXISTS passenger_name TEXT,
+    ADD COLUMN IF NOT EXISTS passenger_phone TEXT,
+    ADD COLUMN IF NOT EXISTS booking_reference TEXT,
+    ADD COLUMN IF NOT EXISTS notes TEXT;
+
 -- 4. Create Message Logs Table for Client Messaging Dispatch
 CREATE TABLE IF NOT EXISTS public.message_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -22,23 +22,19 @@ class CreateBookingPage extends ConsumerStatefulWidget {
 class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Section 1: Client Details
-  final _clientNameController = TextEditingController();
-  final _clientContactController = TextEditingController();
-  final _clientRefController = TextEditingController();
-  final _internalNotesController = TextEditingController();
-
-  // Section 2: Guest Details
+  // Section 1: Guest / Passenger Details
   final _guestNameController = TextEditingController();
   final _guestMobileController = TextEditingController();
   final _guestEmailController = TextEditingController();
+  final _clientRefController = TextEditingController();
+  final _internalNotesController = TextEditingController();
   int _passengersCount = 1;
   int _luggageCount = 1;
   bool _isVip = false;
   final _specialAssistanceController = TextEditingController();
   final _guestNotesController = TextEditingController();
 
-  // Section 3: Flight Details
+  // Section 2: Flight & Airport Details
   final _flightNumberController = TextEditingController();
   String _flightType = 'Arrival';
   final _airportController = TextEditingController(text: 'Ahmedabad International (AMD)');
@@ -46,24 +42,24 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   DateTime _flightDate = DateTime.now();
   TimeOfDay _flightTime = const TimeOfDay(hour: 9, minute: 45);
 
-  // Section 4: Pickup Details
-  DateTime _pickupDate = DateTime.now();
-  TimeOfDay _pickupTime = const TimeOfDay(hour: 10, minute: 0);
+  // Section 3: Pickup & Drop-off Route
   final _pickupLocationController = TextEditingController(text: 'Ahmedabad Airport T2 Arrival Exit');
   final _pickupTerminalController = TextEditingController(text: 'Terminal 2');
   final _pickupNotesController = TextEditingController();
-
-  // Section 5: Drop Details
   final _destinationController = TextEditingController();
   final _destinationAddressController = TextEditingController();
   final _dropNotesController = TextEditingController();
 
-  // Section 6: Driver & Vehicle Selection
+  // Section 4: Schedule & Timing
+  DateTime _pickupDate = DateTime.now();
+  TimeOfDay _pickupTime = const TimeOfDay(hour: 10, minute: 0);
+
+  // Section 5: Driver & Vehicle Selection
   DriverModel? _selectedDriver;
   VehicleModel? get _selectedVehicle => _selectedDriver?.vehicle;
   List<DriverModel>? _supabaseActiveDrivers;
 
-  // Section 7: Reminder Setup
+  // Section 6: Reminder & Notification Setup
   String _reminderDuration = '2 hours';
   bool _notifyPush = true;
   bool _notifySms = true;
@@ -96,8 +92,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
 
   @override
   void dispose() {
-    _clientNameController.dispose();
-    _clientContactController.dispose();
     _clientRefController.dispose();
     _internalNotesController.dispose();
     _guestNameController.dispose();
@@ -132,7 +126,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     if (_selectedDriver == null || _selectedVehicle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select an active driver with an assigned vehicle in Section 6.'),
+          content: Text('Please select an active driver with an assigned vehicle in Section 5.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -148,8 +142,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       final pickupTimeStr = _pickupTime.format(context);
 
       final newBookingId = await ref.read(bookingProvider.notifier).createBooking(
-            clientName: _clientNameController.text.trim(),
-            clientContact: _clientContactController.text.trim(),
             clientReference: _clientRefController.text.trim().isEmpty ? null : _clientRefController.text.trim(),
             internalNotes: _internalNotesController.text.trim().isEmpty ? null : _internalNotesController.text.trim(),
             guestName: _guestNameController.text.trim(),
@@ -323,59 +315,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // SECTION 1: Client Details
+              // SECTION 1: Guest / Passenger Details
               _buildSectionCard(
                 sectionNumber: '1',
-                title: 'Client Details',
-                icon: Icons.business_outlined,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _clientNameController,
-                            decoration: const InputDecoration(labelText: 'Client / Company Name *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _clientContactController,
-                            decoration: const InputDecoration(labelText: 'Client Contact Number *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _clientRefController,
-                            decoration: const InputDecoration(labelText: 'Booking Reference / PO #'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _internalNotesController,
-                            decoration: const InputDecoration(labelText: 'Internal Operations Notes'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // SECTION 2: Guest Details
-              _buildSectionCard(
-                sectionNumber: '2',
-                title: 'Guest Details',
+                title: 'Guest / Passenger Details',
                 icon: Icons.person_outline,
                 child: Column(
                   children: [
@@ -404,12 +347,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         Expanded(
                           child: TextFormField(
                             controller: _guestEmailController,
-                            decoration: const InputDecoration(labelText: 'Guest Email Address *'),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Required';
-                              if (!v.contains('@')) return 'Enter valid email';
-                              return null;
-                            },
+                            decoration: const InputDecoration(labelText: 'Guest Email Address'),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -438,6 +376,24 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _clientRefController,
+                            decoration: const InputDecoration(labelText: 'Booking Reference / PO #'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _internalNotesController,
+                            decoration: const InputDecoration(labelText: 'Internal Operations Notes'),
                           ),
                         ),
                       ],
@@ -477,10 +433,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 3: Flight Details
+              // SECTION 2: Flight & Airport Details
               _buildSectionCard(
-                sectionNumber: '3',
-                title: 'Flight Details',
+                sectionNumber: '2',
+                title: 'Flight & Airport Details',
                 icon: Icons.flight_takeoff_outlined,
                 child: Column(
                   children: [
@@ -569,50 +525,13 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 4: Pickup Details
+              // SECTION 3: Pickup & Drop-off Route
               _buildSectionCard(
-                sectionNumber: '4',
-                title: 'Pickup Details',
+                sectionNumber: '3',
+                title: 'Pickup & Drop-off Route',
                 icon: Icons.pin_drop_outlined,
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ListTile(
-                            tileColor: AppColors.secondarySurface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            leading: const Icon(Icons.calendar_month, color: AppColors.primary),
-                            title: const Text('Pickup Date *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            subtitle: Text(DateFormat('dd MMM yyyy').format(_pickupDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _pickupDate,
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
-                              );
-                              if (picked != null) setState(() => _pickupDate = picked);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ListTile(
-                            tileColor: AppColors.secondarySurface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            leading: const Icon(Icons.access_time, color: AppColors.primary),
-                            title: const Text('Pickup Time *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                            onTap: () async {
-                              final picked = await showTimePicker(context: context, initialTime: _pickupTime);
-                              if (picked != null) setState(() => _pickupTime = picked);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -632,22 +551,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _pickupNotesController,
-                      decoration: const InputDecoration(labelText: 'Pickup Instructions / Nameplate Text'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // SECTION 5: Drop Details
-              _buildSectionCard(
-                sectionNumber: '5',
-                title: 'Destination Drop Details',
-                icon: Icons.flag_outlined,
-                child: Column(
-                  children: [
                     Row(
                       children: [
                         Expanded(
@@ -668,18 +571,75 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _dropNotesController,
-                      decoration: const InputDecoration(labelText: 'Drop Notes / Concierge Delivery'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _pickupNotesController,
+                            decoration: const InputDecoration(labelText: 'Pickup Instructions / Nameplate Text'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _dropNotesController,
+                            decoration: const InputDecoration(labelText: 'Drop Notes / Concierge Delivery'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
-              // SECTION 6: Driver & Vehicle Assignment (Merged)
+              // SECTION 4: Schedule & Timing
               _buildSectionCard(
-                sectionNumber: '6',
+                sectionNumber: '4',
+                title: 'Schedule & Timing',
+                icon: Icons.calendar_month_outlined,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ListTile(
+                        tileColor: AppColors.secondarySurface,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        leading: const Icon(Icons.calendar_month, color: AppColors.primary),
+                        title: const Text('Pickup Date *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                        subtitle: Text(DateFormat('dd MMM yyyy').format(_pickupDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _pickupDate,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (picked != null) setState(() => _pickupDate = picked);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ListTile(
+                        tileColor: AppColors.secondarySurface,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        leading: const Icon(Icons.access_time, color: AppColors.primary),
+                        title: const Text('Pickup Time *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                        subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                        onTap: () async {
+                          final picked = await showTimePicker(context: context, initialTime: _pickupTime);
+                          if (picked != null) setState(() => _pickupTime = picked);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // SECTION 5: Driver & Vehicle Assignment
+              _buildSectionCard(
+                sectionNumber: '5',
                 title: 'Driver & Vehicle Assignment',
                 icon: Icons.badge_outlined,
                 child: Column(
@@ -716,9 +676,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 7: Reminder Setup
+              // SECTION 6: Reminder & Notification Setup
               _buildSectionCard(
-                sectionNumber: '7',
+                sectionNumber: '6',
                 title: 'Reminder & Notification Setup',
                 icon: Icons.notifications_active_outlined,
                 child: Column(
