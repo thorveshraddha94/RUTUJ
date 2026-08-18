@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseConfig {
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://xpkritidsdvirecoujsb.supabase.co/rest/v1/',
+    defaultValue: 'https://xpkritidsdvirecoujsb.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
