@@ -140,201 +140,227 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                       ],
                     ),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(AppColors.secondarySurface),
-                      columns: const [
-                        DataColumn(label: Text('Booking ID', style: _headerStyle)),
-                        DataColumn(label: Text('Guest Name', style: _headerStyle)),
-                        DataColumn(label: Text('Flight & Terminal', style: _headerStyle)),
-                        DataColumn(label: Text('Pickup Time', style: _headerStyle)),
-                        DataColumn(label: Text('Pickup Location', style: _headerStyle)),
-                        DataColumn(label: Text('Destination', style: _headerStyle)),
-                        DataColumn(label: Text('Driver', style: _headerStyle)),
-                        DataColumn(label: Text('Status', style: _headerStyle)),
-                        DataColumn(label: Text('Actions', style: _headerStyle)),
-                      ],
-                      rows: bookingState.filteredBookings.map((b) {
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              InkWell(
-                                onTap: () => context.go('/admin/bookings/${b.id}'),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                                  ),
-                                  child: Text(
-                                    b.displayCode,
-                                    style: const TextStyle(
-                                      color: Color(0xFF60A5FA),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
+                : Builder(
+                    builder: (context) {
+                      final horizontalScrollController = ScrollController();
+                      final verticalScrollController = ScrollController();
+                      return Scrollbar(
+                        controller: verticalScrollController,
+                        thumbVisibility: true,
+                        child: Scrollbar(
+                          controller: horizontalScrollController,
+                          thumbVisibility: true,
+                          notificationPredicate: (notif) => notif.depth == 1,
+                          child: SingleChildScrollView(
+                            controller: verticalScrollController,
+                            scrollDirection: Axis.vertical,
+                            child: SingleChildScrollView(
+                              controller: horizontalScrollController,
+                              scrollDirection: Axis.horizontal,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minWidth: 1300),
+                                child: DataTable(
+                                  headingRowColor: WidgetStateProperty.all(AppColors.secondarySurface),
+                                  columns: const [
+                                    DataColumn(label: Text('Booking ID', style: _headerStyle)),
+                                    DataColumn(label: Text('Passenger', style: _headerStyle)),
+                                    DataColumn(label: Text('Route (Pickup → Dropoff)', style: _headerStyle)),
+                                    DataColumn(label: Text('Pickup Time', style: _headerStyle)),
+                                    DataColumn(label: Text('Flight / Terminal', style: _headerStyle)),
+                                    DataColumn(label: Text('Assigned Driver', style: _headerStyle)),
+                                    DataColumn(label: Text('Vehicle', style: _headerStyle)),
+                                    DataColumn(label: Text('Fare / Amount', style: _headerStyle)),
+                                    DataColumn(label: Text('Status', style: _headerStyle)),
+                                    DataColumn(label: Text('Actions', style: _headerStyle)),
+                                  ],
+                                  rows: bookingState.filteredBookings.map((b) {
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          InkWell(
+                                            onTap: () => context.go('/admin/bookings/${b.id}'),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                              ),
+                                              child: Text(
+                                                b.displayCode,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF60A5FA),
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(b.guestName, style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.w600)),
+                                              if (b.guestMobile.isNotEmpty)
+                                                Text(b.guestMobile, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Container(
+                                            constraints: const BoxConstraints(maxWidth: 220),
+                                            child: Text(
+                                              '${b.pickupLocation} → ${b.destination}',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontSize: 12, color: AppColors.primaryText),
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(Text('${b.pickupDate}\n${b.pickupTime}', style: const TextStyle(color: AppColors.primaryText, fontSize: 12))),
+                                        DataCell(Text(b.flightNumber.isNotEmpty ? '${b.flightNumber} (${b.terminal})' : 'N/A', style: const TextStyle(color: AppColors.primaryText))),
+                                        DataCell(Text(b.driverName ?? 'Unassigned', style: TextStyle(color: b.driverName != null ? AppColors.primaryText : AppColors.danger, fontWeight: b.driverName != null ? FontWeight.normal : FontWeight.w600))),
+                                        DataCell(Text(b.vehicleType ?? 'Sedan', style: const TextStyle(color: AppColors.primaryText))),
+                                        DataCell(Text(b.totalFare > 0 ? '\$${b.totalFare.toStringAsFixed(2)}' : '\$0.00', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
+                                        DataCell(StatusBadge(status: b.status.displayName)),
+                                        DataCell(
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
+                                                onPressed: () => context.go('/admin/bookings/${b.id}'),
+                                                tooltip: 'View Booking',
+                                              ),
+                                              if (b.driverName != null && b.driverMobile != null)
+                                                IconButton(
+                                                  icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),
+                                                  onPressed: () {
+                                                    final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Airport Operations';
+                                                    showDialog(
+                                                      context: context,
+                                                      builder: (dialogContext) => AlertDialog(
+                                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                                        title: Row(
+                                                          children: [
+                                                            const Icon(Icons.chat, color: AppColors.success, size: 24),
+                                                            const SizedBox(width: 8),
+                                                            Expanded(
+                                                              child: Text(
+                                                                'WhatsApp Dispatch — ${b.id}',
+                                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        content: const Text(
+                                                          'Select recipient to dispatch WhatsApp transfer details:',
+                                                          style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                                                        ),
+                                                        actions: [
+                                                          OutlinedButton.icon(
+                                                            onPressed: () {
+                                                              Navigator.of(dialogContext).pop();
+                                                              WhatsAppService.sendTripAssignmentToDriver(
+                                                                driverPhone: b.driverMobile!,
+                                                                driverName: b.driverName!,
+                                                                companyName: companyName,
+                                                                guestName: b.guestName,
+                                                                guestPhone: b.guestMobile,
+                                                                flightNumber: b.flightNumber,
+                                                                pickupLocation: b.pickupLocation,
+                                                                dropoffLocation: b.destination,
+                                                                scheduledTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                                passengersCount: b.passengersCount,
+                                                                luggageCount: b.luggageCount,
+                                                                specialAssistance: b.specialAssistance,
+                                                              );
+                                                            },
+                                                            icon: const Icon(Icons.badge, size: 16),
+                                                            label: Text('Driver (${b.driverName})'),
+                                                          ),
+                                                          OutlinedButton.icon(
+                                                            style: OutlinedButton.styleFrom(
+                                                              foregroundColor: AppColors.success,
+                                                              side: const BorderSide(color: AppColors.success),
+                                                            ),
+                                                            onPressed: () {
+                                                              Navigator.of(dialogContext).pop();
+                                                              WhatsAppService.sendDriverDetailsToClient(
+                                                                clientPhone: b.guestMobile,
+                                                                clientName: b.guestName,
+                                                                companyName: companyName,
+                                                                pickupLocation: b.pickupLocation,
+                                                                dropoffLocation: b.destination,
+                                                                pickupTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                                driverName: b.driverName!,
+                                                                driverPhone: b.driverMobile!,
+                                                                vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
+                                                                plateNumber: b.vehicleRegistration ?? 'N/A',
+                                                              );
+                                                            },
+                                                            icon: const Icon(Icons.person, size: 16),
+                                                            label: Text('Guest (${b.guestName})'),
+                                                          ),
+                                                          ElevatedButton.icon(
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor: AppColors.success,
+                                                              foregroundColor: Colors.white,
+                                                            ),
+                                                            onPressed: () {
+                                                              Navigator.of(dialogContext).pop();
+                                                              WhatsAppService.sendToBoth(
+                                                                guestPhone: b.guestMobile,
+                                                                guestName: b.guestName,
+                                                                companyName: companyName,
+                                                                pickupTime: '${b.pickupDate} at ${b.pickupTime}',
+                                                                pickupLocation: b.pickupLocation,
+                                                                dropoffLocation: b.destination,
+                                                                driverPhone: b.driverMobile!,
+                                                                driverName: b.driverName!,
+                                                                vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
+                                                                plateNumber: b.vehicleRegistration ?? 'N/A',
+                                                                flightNumber: b.flightNumber,
+                                                                passengers: b.passengersCount,
+                                                                notes: b.specialAssistance,
+                                                              );
+                                                            },
+                                                            icon: const Icon(Icons.people_alt, size: 16),
+                                                            label: const Text('👥 Send to Both'),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  },
+                                                  tooltip: 'Send WhatsApp Details',
+                                                ),
+                                              if (b.status != BookingStatus.cancelled && b.status != BookingStatus.completed) ...[
+                                                IconButton(
+                                                  icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.danger),
+                                                  onPressed: () {
+                                                    showDialog(
+                                                      context: context,
+                                                      builder: (context) => CancelBookingDialog(bookingId: b.id),
+                                                    );
+                                                  },
+                                                  tooltip: 'Cancel Booking',
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
                                 ),
                               ),
                             ),
-                            DataCell(
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(b.guestName, style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.w600)),
-                                  Text(b.clientName, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11)),
-                                ],
-                              ),
-                            ),
-                            DataCell(Text('${b.flightNumber} (${b.terminal})', style: const TextStyle(color: AppColors.primaryText))),
-                            DataCell(Text('${b.pickupDate}\n${b.pickupTime}', style: const TextStyle(color: AppColors.primaryText, fontSize: 12))),
-                            DataCell(
-                              Container(
-                                constraints: const BoxConstraints(maxWidth: 150),
-                                child: Text(b.pickupLocation, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-                              ),
-                            ),
-                            DataCell(
-                              Container(
-                                constraints: const BoxConstraints(maxWidth: 150),
-                                child: Text(b.destination, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-                              ),
-                            ),
-                            DataCell(Text(b.driverName ?? 'Unassigned', style: TextStyle(color: b.driverName != null ? AppColors.primaryText : AppColors.danger))),
-                            DataCell(StatusBadge(status: b.status.displayName)),
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
-                                    onPressed: () => context.go('/admin/bookings/${b.id}'),
-                                    tooltip: 'View Booking',
-                                  ),
-                                  if (b.driverName != null && b.driverMobile != null)
-                                    IconButton(
-                                      icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),
-                                      onPressed: () {
-                                        final companyName = ref.read(tenantProvider).currentCompany?.name ?? 'Airport Operations';
-                                        showDialog(
-                                          context: context,
-                                          builder: (dialogContext) => AlertDialog(
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                            title: Row(
-                                              children: [
-                                                const Icon(Icons.chat, color: AppColors.success, size: 24),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Text(
-                                                    'WhatsApp Dispatch — ${b.id}',
-                                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            content: const Text(
-                                              'Select recipient to dispatch WhatsApp transfer details:',
-                                              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                                            ),
-                                            actions: [
-                                               OutlinedButton.icon(
-                                                 onPressed: () {
-                                                   Navigator.of(dialogContext).pop();
-                                                   WhatsAppService.sendTripAssignmentToDriver(
-                                                     driverPhone: b.driverMobile!,
-                                                     driverName: b.driverName!,
-                                                     companyName: companyName,
-                                                     guestName: b.guestName,
-                                                     guestPhone: b.guestMobile,
-                                                     flightNumber: b.flightNumber,
-                                                     pickupLocation: b.pickupLocation,
-                                                     dropoffLocation: b.destination,
-                                                     scheduledTime: '${b.pickupDate} at ${b.pickupTime}',
-                                                     passengersCount: b.passengersCount,
-                                                     luggageCount: b.luggageCount,
-                                                     specialAssistance: b.specialAssistance,
-                                                   );
-                                                 },
-                                                 icon: const Icon(Icons.badge, size: 16),
-                                                 label: Text('Driver (${b.driverName})'),
-                                               ),
-                                               OutlinedButton.icon(
-                                                 style: OutlinedButton.styleFrom(
-                                                   foregroundColor: AppColors.success,
-                                                   side: const BorderSide(color: AppColors.success),
-                                                 ),
-                                                 onPressed: () {
-                                                   Navigator.of(dialogContext).pop();
-                                                   WhatsAppService.sendDriverDetailsToClient(
-                                                     clientPhone: b.guestMobile,
-                                                     clientName: b.guestName,
-                                                     companyName: companyName,
-                                                     pickupLocation: b.pickupLocation,
-                                                     dropoffLocation: b.destination,
-                                                     pickupTime: '${b.pickupDate} at ${b.pickupTime}',
-                                                     driverName: b.driverName!,
-                                                     driverPhone: b.driverMobile!,
-                                                     vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
-                                                     plateNumber: b.vehicleRegistration ?? 'N/A',
-                                                   );
-                                                 },
-                                                 icon: const Icon(Icons.person, size: 16),
-                                                 label: Text('Guest (${b.guestName})'),
-                                               ),
-                                               ElevatedButton.icon(
-                                                 style: ElevatedButton.styleFrom(
-                                                   backgroundColor: AppColors.success,
-                                                   foregroundColor: Colors.white,
-                                                 ),
-                                                 onPressed: () {
-                                                   Navigator.of(dialogContext).pop();
-                                                   WhatsAppService.sendToBoth(
-                                                     guestPhone: b.guestMobile,
-                                                     guestName: b.guestName,
-                                                     companyName: companyName,
-                                                     pickupTime: '${b.pickupDate} at ${b.pickupTime}',
-                                                     pickupLocation: b.pickupLocation,
-                                                     dropoffLocation: b.destination,
-                                                     driverPhone: b.driverMobile!,
-                                                     driverName: b.driverName!,
-                                                     vehicleModel: b.vehicleType ?? 'Assigned Vehicle',
-                                                     plateNumber: b.vehicleRegistration ?? 'N/A',
-                                                     flightNumber: b.flightNumber,
-                                                     passengers: b.passengersCount,
-                                                     notes: b.specialAssistance,
-                                                   );
-                                                 },
-                                                 icon: const Icon(Icons.people_alt, size: 16),
-                                                 label: const Text('👥 Send to Both'),
-                                               ),
-                                             ],
-                                          ),
-                                        );
-                                      },
-                                      tooltip: 'Send WhatsApp Details',
-                                    ),
-                                  if (b.status != BookingStatus.cancelled && b.status != BookingStatus.completed) ...[
-                                    IconButton(
-                                      icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.danger),
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => CancelBookingDialog(bookingId: b.id),
-                                        );
-                                      },
-                                      tooltip: 'Cancel Booking',
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],

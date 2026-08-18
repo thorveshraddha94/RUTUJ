@@ -108,6 +108,8 @@ class BookingModel {
   final String? cancellationReason;
   final List<TimelineEventModel> timeline;
 
+  final double totalFare;
+
   const BookingModel({
     required this.id,
     required this.referenceCode,
@@ -150,6 +152,7 @@ class BookingModel {
     required this.createdAt,
     this.cancellationReason,
     required this.timeline,
+    this.totalFare = 0.0,
   });
 
   BookingModel copyWith({
@@ -400,6 +403,7 @@ class BookingModel {
               ?.map((e) => TimelineEventModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      totalFare: double.tryParse(json['total_fare']?.toString() ?? json['amount']?.toString() ?? json['totalFare']?.toString() ?? '') ?? 0.0,
     );
   }
 

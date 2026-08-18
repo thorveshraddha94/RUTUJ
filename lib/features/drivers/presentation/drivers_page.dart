@@ -152,12 +152,29 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                       ],
                     ),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(AppColors.secondarySurface),
-                      columns: const [
-                        DataColumn(label: Text('Driver ID', style: _headerStyle)),
+                : Builder(
+                    builder: (context) {
+                      final horizontalScrollController = ScrollController();
+                      final verticalScrollController = ScrollController();
+                      return Scrollbar(
+                        controller: verticalScrollController,
+                        thumbVisibility: true,
+                        child: Scrollbar(
+                          controller: horizontalScrollController,
+                          thumbVisibility: true,
+                          notificationPredicate: (notif) => notif.depth == 1,
+                          child: SingleChildScrollView(
+                            controller: verticalScrollController,
+                            scrollDirection: Axis.vertical,
+                            child: SingleChildScrollView(
+                              controller: horizontalScrollController,
+                              scrollDirection: Axis.horizontal,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minWidth: 1100),
+                                child: DataTable(
+                                  headingRowColor: WidgetStateProperty.all(AppColors.secondarySurface),
+                                  columns: const [
+                                    DataColumn(label: Text('Driver ID', style: _headerStyle)),
                         DataColumn(label: Text('Driver Profile', style: _headerStyle)),
                         DataColumn(label: Text('Contact Info', style: _headerStyle)),
                         DataColumn(label: Text('Assigned Vehicle', style: _headerStyle)),
@@ -297,7 +314,13 @@ class _DriversPageState extends ConsumerState<DriversPage> {
                           ],
                         );
                       }).toList(),
-                    ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
