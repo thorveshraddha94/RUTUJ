@@ -238,11 +238,15 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                                IconButton(
                                                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF38BDF8)),
                                                  tooltip: 'Edit Booking',
-                                                 onPressed: () {
-                                                   showDialog(
+                                                 onPressed: () async {
+                                                   final result = await showDialog<bool>(
                                                      context: context,
-                                                     builder: (_) => EditBookingDialog(booking: b),
+                                                     barrierDismissible: true,
+                                                     builder: (ctx) => EditBookingDialog(booking: b),
                                                    );
+                                                   if (result == true) {
+                                                     ref.read(bookingListProvider.notifier).loadBookings();
+                                                   }
                                                  },
                                                ),
                                               if (b.driverName != null && b.driverMobile != null)

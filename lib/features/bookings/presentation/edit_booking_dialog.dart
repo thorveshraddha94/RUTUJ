@@ -6,7 +6,7 @@ import '../data/booking_repository.dart';
 import '../domain/booking_model.dart';
 
 class EditBookingDialog extends ConsumerStatefulWidget {
-  final dynamic booking; // BookingModel
+  final dynamic booking;
   const EditBookingDialog({super.key, required this.booking});
 
   @override
@@ -32,41 +32,97 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
   List<Map<String, dynamic>> _drivers = [];
   List<Map<String, dynamic>> _vehicles = [];
-  bool _isLoadingDropdowns = true;
+  bool _isLoading = true;
   bool _isSaving = false;
+
+  final List<String> _allowedStatuses = [
+    'pending',
+    'assigned',
+    'in_progress',
+    'completed',
+    'cancelled',
+  ];
 
   @override
   void initState() {
     super.initState();
     final b = widget.booking;
 
-    _passengerNameController = TextEditingController(text: b.passengerName ?? b.guestName ?? '');
-    _passengerPhoneController = TextEditingController(text: b.passengerPhone ?? b.guestMobile ?? '');
-    _pickupController = TextEditingController(text: b.pickupLocation ?? '');
-    _dropoffController = TextEditingController(text: b.dropoffLocation ?? b.destination ?? '');
-    _fareController = TextEditingController(text: '${b.totalFare > 0 ? b.totalFare : 0}');
-    _notesController = TextEditingController(text: b.internalNotes ?? b.notes ?? '');
+    // Safe extraction
+    final name = _getField(b, ['passenger_name', 'passengerName', 'customer_name', 'guestName', 'guest_name']) ?? '';
+    final phone = _getField(b, ['passenger_phone', 'passengerPhone', 'customer_phone', 'guestMobile', 'guest_mobile']) ?? '';
+    final pickup = _getField(b, ['pickup_location', 'pickupLocation', 'origin']) ?? '';
+    final dropoff = _getField(b, ['dropoff_location', 'dropoffLocation', 'destination']) ?? '';
+    final fare = _getField(b, ['total_fare', 'totalFare', 'fare', 'amount']) ?? '0';
+    final notes = _getField(b, ['notes', 'internalNotes', 'trip_notes', 'remarks']) ?? '';
+    final statusRaw = (_getField(b, ['status', 'booking_status']) ?? 'pending').toString().toLowerCase().trim();
 
-    final rawStatus = b.status is BookingStatus ? (b.status as BookingStatus).name : (b.status ?? 'pending');
-    _selectedStatus = rawStatus.toString().toLowerCase();
-    _selectedDriverId = b.driverId?.toString();
-    _selectedVehicleId = b.vehicleId?.toString();
+    _passengerNameController = TextEditingController(text: name);
+    _passengerPhoneController = TextEditingController(text: phone);
+    _pickupController = TextEditingController(text: pickup);
+    _dropoffController = TextEditingController(text: dropoff);
+    _fareController = TextEditingController(text: fare.toString());
+    _notesController = TextEditingController(text: notes);
 
-    if (b.pickupDate != null && b.pickupDate.toString().isNotEmpty) {
-      _selectedDate = DateTime.tryParse(b.pickupDate.toString());
-    }
-    if (b.pickupTime != null && b.pickupTime.toString().isNotEmpty) {
-      final dt = DateTime.tryParse(b.pickupTime.toString());
+    _selectedStatus = _allowedStatuses.contains(statusRaw) ? statusRaw : 'pending';
+    _selectedDriverId = _getField(b, ['driver_id', 'driverId'])?.toString();
+    _selectedVehicleId = _getField(b, ['vehicle_id', 'vehicleId'])?.toString();
+
+    // Date & Time extraction
+    final rawTime = _getField(b, ['pickup_time', 'pickupTime', 'pickup_datetime']);
+    if (rawTime != null && rawTime.toString().isNotEmpty) {
+      final dt = DateTime.tryParse(rawTime.toString());
       if (dt != null) {
-        _selectedDate ??= dt;
+        _selectedDate = dt;
         _selectedTime = TimeOfDay.fromDateTime(dt);
       }
     }
 
-    _loadDriversAndVehicles();
+    _loadData();
   }
 
-  Future<void> _loadDriversAndVehicles() async {
+  String? _getField(dynamic obj, List<String> keys) {
+    if (obj == null) return null;
+    if (obj is Map) {
+      for (final k in keys) {
+        if (obj[k] != null && obj[k].toString().isNotEmpty) return obj[k].toString();
+      }
+    }
+    // Reflection / property access fallback
+    for (final k in keys) {
+      try {
+        if (obj is BookingModel) {
+          final json = obj.toSupabase();
+          if (json[k] != null && json[k].toString().isNotEmpty) return json[k].toString();
+        }
+      } catch (_) {}
+    }
+    try {
+      if (obj.guestName != null && keys.contains('passengerName')) return obj.guestName;
+      if (obj.guestMobile != null && keys.contains('passengerPhone')) return obj.guestMobile;
+      if (obj.pickupLocation != null && keys.contains('pickupLocation')) return obj.pickupLocation;
+      if (obj.destination != null && keys.contains('dropoffLocation')) return obj.destination;
+      if (obj.totalFare != null && keys.contains('totalFare')) return obj.totalFare.toString();
+      if (obj.internalNotes != null && keys.contains('notes')) return obj.internalNotes;
+      if (obj.driverId != null && keys.contains('driverId')) return obj.driverId;
+      if (obj.vehicleId != null && keys.contains('vehicleId')) return obj.vehicleId;
+      if (obj.status != null && keys.contains('status')) return obj.status is BookingStatus ? (obj.status as BookingStatus).name : obj.status.toString();
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _passengerNameController.dispose();
+    _passengerPhoneController.dispose();
+    _pickupController.dispose();
+    _dropoffController.dispose();
+    _fareController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
     try {
       final user = _supabase.auth.currentUser;
       String? companyId;
@@ -84,19 +140,33 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       }
 
       final results = await Future.wait([driversQuery, vehiclesQuery]);
+
       if (mounted) {
         setState(() {
           _drivers = List<Map<String, dynamic>>.from(results[0] as List);
           _vehicles = List<Map<String, dynamic>>.from(results[1] as List);
-          _isLoadingDropdowns = false;
+
+          // Verify that selected driver ID exists in fetched drivers list
+          if (_selectedDriverId != null &&
+              !_drivers.any((d) => d['id'].toString() == _selectedDriverId)) {
+            _selectedDriverId = null;
+          }
+
+          // Verify that selected vehicle ID exists in fetched vehicles list
+          if (_selectedVehicleId != null &&
+              !_vehicles.any((v) => v['id'].toString() == _selectedVehicleId)) {
+            _selectedVehicleId = null;
+          }
+
+          _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoadingDropdowns = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _onDriverSelected(String? driverId) {
+  void _onDriverChanged(String? driverId) {
     setState(() {
       _selectedDriverId = driverId;
       if (driverId != null) {
@@ -105,7 +175,10 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
           orElse: () => {},
         );
         if (matchedDriver['vehicle_id'] != null) {
-          _selectedVehicleId = matchedDriver['vehicle_id'].toString();
+          final autoVehicleId = matchedDriver['vehicle_id'].toString();
+          if (_vehicles.any((v) => v['id'].toString() == autoVehicleId)) {
+            _selectedVehicleId = autoVehicleId;
+          }
         }
       }
     });
@@ -116,7 +189,7 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? now,
-      firstDate: now.subtract(const Duration(days: 30)),
+      firstDate: now.subtract(const Duration(days: 60)),
       lastDate: now.add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _selectedDate = picked);
@@ -130,15 +203,15 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     if (picked != null) setState(() => _selectedTime = picked);
   }
 
-  Future<void> _submitUpdate() async {
+  Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
     try {
-      DateTime? fullPickupDateTime;
+      DateTime? combinedPickupTime;
       if (_selectedDate != null) {
         final time = _selectedTime ?? const TimeOfDay(hour: 0, minute: 0);
-        fullPickupDateTime = DateTime(
+        combinedPickupTime = DateTime(
           _selectedDate!.year,
           _selectedDate!.month,
           _selectedDate!.day,
@@ -147,11 +220,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         );
       }
 
-      final pickupStr = fullPickupDateTime != null
-          ? DateFormat('yyyy-MM-dd HH:mm').format(fullPickupDateTime)
-          : null;
+      final bookingId = _getField(widget.booking, ['id']) ?? widget.booking.id;
 
-      final updates = <String, dynamic>{
+      final updates = {
         'passenger_name': _passengerNameController.text.trim(),
         'customer_name': _passengerNameController.text.trim(),
         'passenger_phone': _passengerPhoneController.text.trim(),
@@ -164,17 +235,23 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         'amount': double.tryParse(_fareController.text.trim()) ?? 0.0,
         'status': _selectedStatus,
         'booking_status': _selectedStatus,
+        'driver_id': _selectedDriverId,
+        'vehicle_id': _selectedVehicleId,
         'notes': _notesController.text.trim(),
-        if (pickupStr != null) 'pickup_time': pickupStr,
-        if (pickupStr != null) 'pickup_datetime': pickupStr,
-        if (_selectedDriverId != null) 'driver_id': _selectedDriverId,
-        if (_selectedVehicleId != null) 'vehicle_id': _selectedVehicleId,
+        'updated_at': DateTime.now().toIso8601String(),
+        if (combinedPickupTime != null) 'pickup_time': combinedPickupTime.toIso8601String(),
+        if (combinedPickupTime != null) 'pickup_datetime': combinedPickupTime.toIso8601String(),
       };
 
-      await ref.read(bookingListProvider.notifier).updateBooking(widget.booking.id.toString(), updates);
+      await _supabase.from('bookings').update(updates).eq('id', bookingId);
+
+      // Refresh list if bookingListProvider exists
+      try {
+        ref.read(bookingListProvider.notifier).loadBookings();
+      } catch (_) {}
 
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Booking updated successfully!'),
@@ -185,7 +262,7 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.redAccent),
+          SnackBar(content: Text('Error updating: $e'), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -195,282 +272,266 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final displayCodeStr = widget.booking is BookingModel
-        ? (widget.booking as BookingModel).displayCode
-        : (widget.booking.id != null && widget.booking.id.toString().length >= 8
-            ? widget.booking.id.toString().substring(0, 8)
-            : 'BOOKING');
+    final dateFormat = DateFormat('dd MMM yyyy');
+    final code = _getField(widget.booking, ['booking_code', 'displayCode', 'reference_code']) ?? 'BK';
 
     return Dialog(
       backgroundColor: const Color(0xFF131E2E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 640,
+        width: 680,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: _isLoading
+            ? const SizedBox(
+                height: 300,
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8))),
+              )
+            : Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Modal Header
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.edit_note, color: Color(0xFF38BDF8), size: 24),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Edit Booking — $displayCodeStr',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        Row(
+                          children: [
+                            const Icon(Icons.edit_note, color: Color(0xFF38BDF8), size: 26),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Edit Booking — $code',
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () => Navigator.of(context).pop(),
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.grey),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                const Divider(color: Color(0xFF1F2E45)),
-                const SizedBox(height: 16),
+                    const Divider(color: Color(0xFF1F2E45)),
+                    const SizedBox(height: 12),
 
-                // 1. Passenger Info
-                Row(
-                  children: [
+                    // Scrollable Inputs Area
                     Expanded(
-                      child: _buildTextField('Passenger Name *', _passengerNameController, Icons.person_outline),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTextField('Passenger Phone *', _passengerPhoneController, Icons.phone_outlined),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. Passenger Details
+                            const Text('1. Passenger Information', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(child: _buildTextField('Passenger Name *', _passengerNameController, Icons.person_outline)),
+                                const SizedBox(width: 12),
+                                Expanded(child: _buildTextField('Contact Phone *', _passengerPhoneController, Icons.phone_outlined)),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
 
-                // 2. Route Info
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTextField('Pickup Location *', _pickupController, Icons.trip_origin),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTextField('Dropoff Location *', _dropoffController, Icons.location_on_outlined),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                            // 2. Route
+                            const Text('2. Trip Route Details', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            _buildTextField('Pickup Address *', _pickupController, Icons.trip_origin),
+                            const SizedBox(height: 12),
+                            _buildTextField('Dropoff Address *', _dropoffController, Icons.location_on_outlined),
+                            const SizedBox(height: 16),
 
-                // 3. Schedule Pickers
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: _pickDate,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF1F2E45)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today, color: Color(0xFF38BDF8), size: 18),
-                              const SizedBox(width: 10),
-                              Text(
-                                _selectedDate != null
-                                    ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
-                                    : 'Select Date',
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                              ),
-                            ],
-                          ),
+                            // 3. Schedule & Fare
+                            const Text('3. Schedule & Fare', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: _pickDate,
+                                    child: _buildPickerContainer(
+                                      label: 'Pickup Date',
+                                      value: _selectedDate != null ? dateFormat.format(_selectedDate!) : 'Select Date',
+                                      icon: Icons.calendar_today_outlined,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: _pickTime,
+                                    child: _buildPickerContainer(
+                                      label: 'Pickup Time',
+                                      value: _selectedTime != null ? _selectedTime!.format(context) : 'Select Time',
+                                      icon: Icons.access_time,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(child: _buildTextField('Fare (₹)', _fareController, Icons.currency_rupee)),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 4. Driver & Vehicle
+                            const Text('4. Fleet Assignment & Status', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<String?>(
+                                    value: _selectedDriverId,
+                                    dropdownColor: const Color(0xFF0F172A),
+                                    decoration: _dropdownDecoration('Assigned Driver', Icons.badge_outlined),
+                                    items: [
+                                      const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', style: TextStyle(color: Colors.grey))),
+                                      ..._drivers.map((d) => DropdownMenuItem<String?>(
+                                            value: d['id'].toString(),
+                                            child: Text(d['name'] ?? d['full_name'] ?? 'Driver', style: const TextStyle(color: Colors.white)),
+                                          )),
+                                    ],
+                                    onChanged: _onDriverChanged,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: DropdownButtonFormField<String?>(
+                                    value: _selectedVehicleId,
+                                    dropdownColor: const Color(0xFF0F172A),
+                                    decoration: _dropdownDecoration('Assigned Vehicle', Icons.directions_car_outlined),
+                                    items: [
+                                      const DropdownMenuItem<String?>(value: null, child: Text('No Vehicle', style: TextStyle(color: Colors.grey))),
+                                      ..._vehicles.map((v) => DropdownMenuItem<String?>(
+                                            value: v['id'].toString(),
+                                            child: Text('${v['model'] ?? v['make'] ?? "Car"} (${v['registration_number'] ?? v['plate_number'] ?? ""})', style: const TextStyle(color: Colors.white)),
+                                          )),
+                                    ],
+                                    onChanged: (val) => setState(() => _selectedVehicleId = val),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Status & Notes
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedStatus,
+                                    dropdownColor: const Color(0xFF0F172A),
+                                    decoration: _dropdownDecoration('Status', Icons.flag_outlined),
+                                    items: const [
+                                      DropdownMenuItem(value: 'pending', child: Text('Pending', style: TextStyle(color: Colors.orangeAccent))),
+                                      DropdownMenuItem(value: 'assigned', child: Text('Assigned', style: TextStyle(color: Colors.amberAccent))),
+                                      DropdownMenuItem(value: 'in_progress', child: Text('In Progress', style: TextStyle(color: Colors.blueAccent))),
+                                      DropdownMenuItem(value: 'completed', child: Text('Completed', style: TextStyle(color: Colors.greenAccent))),
+                                      DropdownMenuItem(value: 'cancelled', child: Text('Cancelled', style: TextStyle(color: Colors.redAccent))),
+                                    ],
+                                    onChanged: (val) => setState(() => _selectedStatus = val),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(child: _buildTextField('Notes', _notesController, Icons.notes_outlined, required: false)),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: _pickTime,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF1F2E45)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.access_time, color: Color(0xFF38BDF8), size: 18),
-                              const SizedBox(width: 10),
-                              Text(
-                                _selectedTime != null
-                                    ? _selectedTime!.format(context)
-                                    : 'Select Time',
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                              ),
-                            ],
-                          ),
+
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0xFF1F2E45)),
+                    const SizedBox(height: 8),
+
+                    // Action Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: _isSaving
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.save_outlined, size: 18, color: Colors.white),
+                          label: Text(_isSaving ? 'Updating...' : 'Save Changes', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          onPressed: _isSaving ? null : _saveChanges,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                // 4. Driver & Vehicle Assignment
-                if (_isLoadingDropdowns)
-                  const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _drivers.any((d) => d['id'].toString() == _selectedDriverId)
-                              ? _selectedDriverId
-                              : null,
-                          dropdownColor: const Color(0xFF0F172A),
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          decoration: InputDecoration(
-                            labelText: 'Assign Driver',
-                            labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                            filled: true,
-                            fillColor: const Color(0xFF0F172A),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-                          ),
-                          items: _drivers.map((d) {
-                            final name = (d['name'] ?? d['full_name'] ?? 'Driver').toString();
-                            final phone = (d['mobile'] ?? d['mobile_number'] ?? '').toString();
-                            return DropdownMenuItem<String>(
-                              value: d['id'].toString(),
-                              child: Text('$name ($phone)', overflow: TextOverflow.ellipsis),
-                            );
-                          }).toList(),
-                          onChanged: _onDriverSelected,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _vehicles.any((v) => v['id'].toString() == _selectedVehicleId)
-                              ? _selectedVehicleId
-                              : null,
-                          dropdownColor: const Color(0xFF0F172A),
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          decoration: InputDecoration(
-                            labelText: 'Assign Vehicle',
-                            labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                            filled: true,
-                            fillColor: const Color(0xFF0F172A),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-                          ),
-                          items: _vehicles.map((v) {
-                            final make = (v['make'] ?? '').toString();
-                            final model = (v['model'] ?? '').toString();
-                            final reg = (v['registration_number'] ?? v['plate_number'] ?? '').toString();
-                            return DropdownMenuItem<String>(
-                              value: v['id'].toString(),
-                              child: Text('$make $model ($reg)', overflow: TextOverflow.ellipsis),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setState(() => _selectedVehicleId = val),
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 16),
-
-                // 5. Status & Fare
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedStatus,
-                        dropdownColor: const Color(0xFF0F172A),
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                        decoration: InputDecoration(
-                          labelText: 'Booking Status',
-                          labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                          filled: true,
-                          fillColor: const Color(0xFF0F172A),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                          DropdownMenuItem(value: 'assigned', child: Text('Assigned')),
-                          DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
-                          DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                          DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
-                        ],
-                        onChanged: (val) => setState(() => _selectedStatus = val),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTextField('Total Fare (\$)', _fareController, Icons.attach_money),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // 6. Internal Notes
-                _buildTextField('Internal Notes / Special Instructions', _notesController, Icons.notes_outlined),
-                const SizedBox(height: 24),
-
-                // Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0284C7),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: _isSaving
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.save_outlined, size: 18, color: Colors.white),
-                      label: Text(_isSaving ? 'Saving...' : 'Save Changes', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      onPressed: _isSaving ? null : _submitUpdate,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildPickerContainer({required String label, required String value, required IconData icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF1F2E45)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF64748B), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _dropdownDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+      prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
+      filled: true,
+      fillColor: const Color(0xFF0F172A),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool required = true}) {
     return TextFormField(
       controller: controller,
       style: const TextStyle(color: Colors.white, fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+        labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
         prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
         filled: true,
         fillColor: const Color(0xFF0F172A),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
       ),
-      validator: (val) => (label.contains('*') && (val == null || val.trim().isEmpty)) ? 'Required field' : null,
+      validator: required ? (val) => val == null || val.trim().isEmpty ? 'Required' : null : null,
     );
   }
 }
