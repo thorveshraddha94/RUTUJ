@@ -222,7 +222,7 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
       final bookingId = _getField(widget.booking, ['id']) ?? widget.booking.id;
 
-      final updates = {
+      final updates = <String, dynamic>{
         'passenger_name': _passengerNameController.text.trim(),
         'customer_name': _passengerNameController.text.trim(),
         'passenger_phone': _passengerPhoneController.text.trim(),
@@ -235,17 +235,29 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         'amount': double.tryParse(_fareController.text.trim()) ?? 0.0,
         'status': _selectedStatus,
         'booking_status': _selectedStatus,
-        'driver_id': _selectedDriverId,
-        'vehicle_id': _selectedVehicleId,
         'notes': _notesController.text.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-        if (combinedPickupTime != null) 'pickup_time': combinedPickupTime.toIso8601String(),
-        if (combinedPickupTime != null) 'pickup_datetime': combinedPickupTime.toIso8601String(),
       };
 
+      if (_selectedDriverId != null && _selectedDriverId!.isNotEmpty) {
+        updates['driver_id'] = _selectedDriverId;
+      } else {
+        updates['driver_id'] = null;
+      }
+
+      if (_selectedVehicleId != null && _selectedVehicleId!.isNotEmpty) {
+        updates['vehicle_id'] = _selectedVehicleId;
+      } else {
+        updates['vehicle_id'] = null;
+      }
+
+      if (combinedPickupTime != null) {
+        updates['pickup_time'] = combinedPickupTime.toIso8601String();
+        updates['pickup_datetime'] = combinedPickupTime.toIso8601String();
+      }
+
+      print('🚀 [EditBooking] Sending updates: $updates');
       await _supabase.from('bookings').update(updates).eq('id', bookingId);
 
-      // Refresh list if bookingListProvider exists
       try {
         ref.read(bookingListProvider.notifier).loadBookings();
       } catch (_) {}
@@ -262,7 +274,10 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating: $e'), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text('Error updating: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     } finally {

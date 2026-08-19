@@ -678,7 +678,6 @@ Thank you for choosing your airport transfer provider!''';
         'amount': totalFare,
         'status': data['status'] ?? 'pending',
         'booking_status': data['status'] ?? 'pending',
-        'updated_at': DateTime.now().toIso8601String(),
         if (pickupTime != null) 'pickup_time': pickupTime,
         if (pickupTime != null) 'pickup_datetime': pickupTime,
         if (data['driver_id'] != null) 'driver_id': data['driver_id'],
