@@ -21,6 +21,14 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(superadminNotifierProvider.notifier).loadAdmins();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -43,7 +51,7 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
           ],
         ),
         content: Text(
-          'Are you sure you want to permanently delete user "${admin.username}" (${admin.email ?? 'No Email'}) from workspace "${admin.companyName}"?\n\nThis will trigger the delete_admin_user RPC function.',
+          'Are you sure you want to permanently delete user "${admin.username}" (${admin.email}) from workspace "${admin.companyName}"?\n\nThis will trigger the delete_admin_user RPC function.',
           style: const TextStyle(color: AppColors.secondaryText, fontSize: 14, height: 1.4),
         ),
         actions: [
@@ -314,22 +322,49 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
                         ),
                       ],
                     ),
-                    child: state.filteredAdmins.isEmpty
+                    child: state.isLoading
                         ? Padding(
                             padding: const EdgeInsets.all(48),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
-                                Icon(Icons.search_off_rounded, size: 48, color: AppColors.secondaryText),
-                                SizedBox(height: 12),
+                                SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
+                                ),
+                                SizedBox(height: 16),
                                 Text(
-                                  'No admin accounts match your criteria',
+                                  'Loading admin workspaces...',
                                   style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
                                 ),
                               ],
                             ),
                           )
-                        : SingleChildScrollView(
+                        : state.filteredAdmins.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(48),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.people_outline, size: 48, color: Colors.blueGrey),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'No registered tenant admins found.',
+                                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      ElevatedButton.icon(
+                                        icon: const Icon(Icons.refresh, size: 18),
+                                        label: const Text('Refresh'),
+                                        onPressed: () => ref.read(superadminNotifierProvider.notifier).loadAdmins(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: DataTable(
                               headingRowHeight: 52,
@@ -377,9 +412,7 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
                               ],
                               rows: state.filteredAdmins.map((admin) {
                                 final isSuperAdminAccount = admin.isSuperAdmin;
-                                final dateStr = admin.createdAt != null
-                                    ? DateFormat('MMM dd, yyyy').format(admin.createdAt!)
-                                    : 'Recent';
+                                final dateStr = DateFormat('MMM dd, yyyy').format(admin.createdAt);
 
                                 return DataRow(
                                   cells: [
@@ -434,42 +467,42 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
                                                   ],
                                                 ],
                                               ),
-                                              if (admin.email != null) ...[
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  admin.email!,
-                                                  style: const TextStyle(
-                                                    color: AppColors.secondaryText,
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    // Company Name
-                                    DataCell(
-                                      Text(
-                                        admin.companyName ?? 'N/A',
-                                        style: const TextStyle(
-                                          color: AppColors.primaryText,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    // Contact Phone
-                                    DataCell(
-                                      Text(
-                                        admin.phone ?? 'N/A',
-                                        style: const TextStyle(
-                                          color: AppColors.secondaryText,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
+                                               if (admin.email.isNotEmpty) ...[
+                                                 const SizedBox(height: 2),
+                                                 Text(
+                                                   admin.email,
+                                                   style: const TextStyle(
+                                                     color: AppColors.secondaryText,
+                                                     fontSize: 11,
+                                                   ),
+                                                 ),
+                                               ],
+                                             ],
+                                           ),
+                                         ],
+                                       ),
+                                     ),
+                                     // Company Name
+                                     DataCell(
+                                       Text(
+                                         admin.companyName,
+                                         style: const TextStyle(
+                                           color: AppColors.primaryText,
+                                           fontSize: 13,
+                                           fontWeight: FontWeight.w500,
+                                         ),
+                                       ),
+                                     ),
+                                     // Contact Phone
+                                     DataCell(
+                                       Text(
+                                         admin.phone,
+                                         style: const TextStyle(
+                                           color: AppColors.secondaryText,
+                                           fontSize: 13,
+                                         ),
+                                       ),
+                                     ),
                                     // Status Badge
                                     DataCell(
                                       StatusBadge(status: admin.status.toUpperCase()),
