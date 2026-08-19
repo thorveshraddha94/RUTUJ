@@ -30,11 +30,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/admin/dashboard',
     redirect: (context, state) {
       final path = state.uri.path;
-      final fullUri = state.uri.toString();
+      final fullPath = state.uri.toString();
+      final browserUrl = Uri.base.toString();
 
-      // 1. Always allow public driver trip pages without any auth check
-      if (path.contains('/trip') || fullUri.contains('/trip')) {
-        return null;
+      // CRITICAL: If the URL has "/trip", NEVER redirect to login
+      if (path.contains('/trip') || fullPath.contains('/trip') || browserUrl.contains('/trip')) {
+        return null; // Bypass all auth checks
       }
 
       if (authState.isLoading) {

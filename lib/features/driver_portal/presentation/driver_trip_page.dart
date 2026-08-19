@@ -21,13 +21,30 @@ class _DriverTripPageState extends State<DriverTripPage> {
   @override
   void initState() {
     super.initState();
-    _currentToken = widget.token.isNotEmpty
-        ? widget.token
-        : (Uri.base.queryParameters['token'] ?? '');
-    _loadTrip(_currentToken);
+    _resolveTokenAndLoad();
   }
 
-  Future<void> _loadTrip([String? tokenOverride]) async {
+  void _resolveTokenAndLoad() {
+    String token = widget.token;
+
+    // Fallback 1: Query parameters
+    if (token.isEmpty) {
+      token = Uri.base.queryParameters['token'] ?? '';
+    }
+
+    // Fallback 2: Parse raw browser hash URI (e.g. /#/trip/xyz)
+    if (token.isEmpty) {
+      final fragment = Uri.base.fragment; // e.g. "/trip/abcd-1234"
+      if (fragment.contains('/trip/')) {
+        token = fragment.split('/trip/').last.split('?').first;
+      }
+    }
+
+    _currentToken = token;
+    _fetchTripDetails(token);
+  }
+
+  Future<void> _fetchTripDetails([String? tokenOverride]) async {
     final token = tokenOverride ?? _currentToken;
     if (token.isEmpty) {
       setState(() {
@@ -99,7 +116,7 @@ class _DriverTripPageState extends State<DriverTripPage> {
           .update(updates)
           .or('trip_token.eq.$token,id.eq.$token');
 
-      await _loadTrip(token);
+      await _fetchTripDetails(token);
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
