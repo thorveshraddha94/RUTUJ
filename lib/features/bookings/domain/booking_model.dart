@@ -60,6 +60,9 @@ class BookingModel {
   String get passengerPhone => guestMobile;
   String get dropoffLocation => destination;
   String get tripToken => id;
+  String? get vehicleName => vehicleType;
+  String? get vehicleNumber => vehicleRegistration;
+  String? get driverPhone => driverMobile;
 
   String get displayCode {
     if (referenceCode.isNotEmpty && !referenceCode.startsWith('REF-') && referenceCode.length <= 12) {

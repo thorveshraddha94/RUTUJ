@@ -654,6 +654,48 @@ Thank you for choosing your airport transfer provider!''';
 
     state = state.copyWith(bookings: updated);
   }
+
+  Future<void> updateBooking(String bookingId, Map<String, dynamic> data) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final pickup = (data['pickup_location'] ?? data['origin'] ?? '').toString().trim();
+      final dropoff = (data['dropoff_location'] ?? data['destination'] ?? '').toString().trim();
+      final passengerName = (data['passenger_name'] ?? data['customer_name'] ?? '').toString().trim();
+      final passengerPhone = (data['passenger_phone'] ?? data['customer_phone'] ?? '').toString().trim();
+      final pickupTime = data['pickup_time'] ?? data['pickup_datetime'];
+      final totalFare = double.tryParse((data['total_fare'] ?? data['amount'] ?? '0').toString()) ?? 0.0;
+
+      final updates = <String, dynamic>{
+        'pickup_location': pickup,
+        'dropoff_location': dropoff,
+        'origin': pickup,
+        'destination': dropoff,
+        'passenger_name': passengerName,
+        'customer_name': passengerName,
+        'passenger_phone': passengerPhone,
+        'customer_phone': passengerPhone,
+        'total_fare': totalFare,
+        'amount': totalFare,
+        'status': data['status'] ?? 'pending',
+        'booking_status': data['status'] ?? 'pending',
+        'updated_at': DateTime.now().toIso8601String(),
+        if (pickupTime != null) 'pickup_time': pickupTime,
+        if (pickupTime != null) 'pickup_datetime': pickupTime,
+        if (data['driver_id'] != null) 'driver_id': data['driver_id'],
+        if (data['vehicle_id'] != null) 'vehicle_id': data['vehicle_id'],
+        if (data['notes'] != null) 'notes': data['notes'],
+      };
+
+      print('📝 [BookingRepo] Updating booking $bookingId: $updates');
+      await supabase.from('bookings').update(updates).eq('id', bookingId);
+      print('✅ [BookingRepo] Booking updated successfully');
+      await fetchBookings();
+    } catch (e, st) {
+      print('❌ [BookingRepo] Update booking error: $e');
+      print(st);
+      rethrow;
+    }
+  }
 }
 
 final bookingProvider = StateNotifierProvider<BookingNotifier, BookingState>((
@@ -662,6 +704,8 @@ final bookingProvider = StateNotifierProvider<BookingNotifier, BookingState>((
   final smsService = SmsService(isConfigured: false);
   return BookingNotifier(ref, smsService);
 });
+
+final bookingListProvider = bookingProvider;
 
 final bookingDetailsProvider = Provider.family<BookingModel?, String>((
   ref,

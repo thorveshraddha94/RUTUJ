@@ -8,6 +8,7 @@ import '../domain/booking_model.dart';
 import '../../../core/services/whatsapp_service.dart';
 import '../../tenant/data/tenant_provider.dart';
 import 'cancel_booking_dialog.dart';
+import 'edit_booking_dialog.dart';
 
 class BookingsListPage extends ConsumerStatefulWidget {
   const BookingsListPage({super.key});
@@ -229,11 +230,21 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                           Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              IconButton(
-                                                icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
-                                                onPressed: () => context.go('/admin/bookings/${b.id}'),
-                                                tooltip: 'View Booking',
-                                              ),
+                                               IconButton(
+                                                 icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
+                                                 onPressed: () => context.go('/admin/bookings/${b.id}'),
+                                                 tooltip: 'View Booking',
+                                               ),
+                                               IconButton(
+                                                 icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF38BDF8)),
+                                                 tooltip: 'Edit Booking',
+                                                 onPressed: () {
+                                                   showDialog(
+                                                     context: context,
+                                                     builder: (_) => EditBookingDialog(booking: b),
+                                                   );
+                                                 },
+                                               ),
                                               if (b.driverName != null && b.driverMobile != null)
                                                 IconButton(
                                                   icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),

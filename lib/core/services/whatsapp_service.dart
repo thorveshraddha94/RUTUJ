@@ -8,15 +8,75 @@ class WhatsAppService {
   }
 
   /// Launch WhatsApp with safe UTF-8 query encoding
-  static Future<void> _launchWhatsApp(String phone, String message) async {
+  static Future<void> sendWhatsApp(String phone, String text) async {
     final cleanNumber = _cleanPhone(phone);
-    final Uri url = Uri.https('wa.me', '/$cleanNumber', {
-      'text': message,
-    });
+    final encodedText = Uri.encodeComponent(text);
+    final Uri url = Uri.parse('https://wa.me/$cleanNumber?text=$encodedText');
 
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
+  }
+
+  /// 1. Driver WhatsApp Message (Includes Trip Portal Link)
+  static String buildDriverMessage({
+    required String bookingCode,
+    required String passengerName,
+    required String passengerPhone,
+    required String pickupLocation,
+    required String dropoffLocation,
+    required String pickupTime,
+    String? tripToken,
+    String? bookingId,
+  }) {
+    final token = tripToken ?? bookingId ?? '';
+    final tripLink = 'https://travelportl.vercel.app/#/trip/$token';
+
+    final buffer = StringBuffer();
+    buffer.writeln('🚗 *New Trip Assignment — $bookingCode*');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('👤 *Passenger:* $passengerName');
+    buffer.writeln('📞 *Contact:* $passengerPhone');
+    buffer.writeln('📍 *Pickup:* $pickupLocation');
+    buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    if (pickupTime.isNotEmpty) {
+      buffer.writeln('⏰ *Pickup Time:* $pickupTime');
+    }
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('📲 *Update Trip Status (Tap Link Below):*');
+    buffer.writeln(tripLink);
+    return buffer.toString();
+  }
+
+  /// 2. Guest WhatsApp Message (Driver & Vehicle Confirmation)
+  static String buildGuestMessage({
+    required String bookingCode,
+    required String pickupLocation,
+    required String dropoffLocation,
+    required String pickupTime,
+    required String driverName,
+    required String driverPhone,
+    String? vehicleName,
+    String? vehicleNumber,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('🚖 *Your Booking Confirmation — $bookingCode*');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('📍 *Pickup:* $pickupLocation');
+    buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    if (pickupTime.isNotEmpty) {
+      buffer.writeln('⏰ *Pickup Time:* $pickupTime');
+    }
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('👨‍✈️ *Assigned Driver:* $driverName');
+    buffer.writeln('📞 *Driver Phone:* $driverPhone');
+    if (vehicleName != null && vehicleName.isNotEmpty) {
+      final numStr = (vehicleNumber != null && vehicleNumber.isNotEmpty) ? ' ($vehicleNumber)' : '';
+      buffer.writeln('🚗 *Vehicle:* $vehicleName$numStr');
+    }
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('Have a safe trip with us!');
+    return buffer.toString();
   }
 
   /// 1. WhatsApp Template sent to the GUEST
@@ -31,26 +91,20 @@ class WhatsAppService {
     required String driverPhone,
     required String vehicleModel,
     required String plateNumber,
+    String? displayCode,
   }) async {
-    final message = '''
-*TRIP CONFIRMATION*
-----------------------------------------
-Dear *$guestName*, your booking with *$companyName* is confirmed!
-
-*Scheduled Time:* $pickupTime
-*Pickup Location:* $pickupLocation
-*Dropoff Location:* $dropoffLocation
-
-*DRIVER & VEHICLE DETAILS*
-- *Driver Name:* $driverName
-- *Driver Contact:* $driverPhone
-- *Vehicle Model:* $vehicleModel
-- *License Plate:* $plateNumber
-
-Have a pleasant journey!
-----------------------------------------''';
-
-    await _launchWhatsApp(guestPhone, message);
+    final code = displayCode ?? 'BK-CONFIRM';
+    final text = buildGuestMessage(
+      bookingCode: code,
+      pickupLocation: pickupLocation,
+      dropoffLocation: dropoffLocation,
+      pickupTime: pickupTime,
+      driverName: driverName,
+      driverPhone: driverPhone,
+      vehicleName: vehicleModel,
+      vehicleNumber: plateNumber,
+    );
+    await sendWhatsApp(guestPhone, text);
   }
 
   /// 2. WhatsApp Template sent to the DRIVER
@@ -70,38 +124,18 @@ Have a pleasant journey!
     int? passengers,
     String? notes,
   }) async {
-    final token = tripToken ?? bookingId ?? '';
-    final code = displayCode ?? (token.length >= 6 ? 'BK-${token.substring(0, 6).toUpperCase()}' : 'BK-TRIP');
-    final tripLink = token.isNotEmpty ? 'https://travelportl.vercel.app/#/trip/$token' : '';
-
-    final buffer = StringBuffer();
-    buffer.writeln('🚗 *New Trip Assignment — $code*');
-    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
-    buffer.writeln('Hello *$driverName*, you have a new trip scheduled from *$companyName*:');
-    buffer.writeln('');
-    buffer.writeln('👤 *Passenger:* $guestName');
-    buffer.writeln('📞 *Contact:* $guestPhone');
-    buffer.writeln('📍 *Pickup:* $pickupLocation');
-    buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
-    buffer.writeln('⏰ *Pickup Time:* $pickupTime');
-    if (flightNumber != null && flightNumber.isNotEmpty) {
-      buffer.writeln('✈️ *Flight No:* $flightNumber');
-    }
-    if (passengers != null) {
-      buffer.writeln('👥 *Pax:* $passengers');
-    }
-    if (notes != null && notes.isNotEmpty) {
-      buffer.writeln('📝 *Notes:* $notes');
-    }
-    if (tripLink.isNotEmpty) {
-      buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
-      buffer.writeln('📲 *Update Trip Status (Tap Link Below):*');
-      buffer.writeln(tripLink);
-    }
-    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
-    buffer.writeln('Please ensure punctuality. Have a safe drive!');
-
-    await _launchWhatsApp(driverPhone, buffer.toString());
+    final code = displayCode ?? (bookingId != null && bookingId.length >= 6 ? 'BK-${bookingId.substring(0, 6).toUpperCase()}' : 'BK-TRIP');
+    final text = buildDriverMessage(
+      bookingCode: code,
+      passengerName: guestName,
+      passengerPhone: guestPhone,
+      pickupLocation: pickupLocation,
+      dropoffLocation: dropoffLocation,
+      pickupTime: pickupTime,
+      tripToken: tripToken,
+      bookingId: bookingId,
+    );
+    await sendWhatsApp(driverPhone, text);
   }
 
   /// 3. 1-Click WhatsApp Template sent to BOTH Guest and Driver
@@ -134,6 +168,7 @@ Have a pleasant journey!
       driverPhone: driverPhone,
       vehicleModel: vehicleModel,
       plateNumber: plateNumber,
+      displayCode: displayCode,
     );
 
     await Future.delayed(const Duration(milliseconds: 1200));
