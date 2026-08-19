@@ -17,9 +17,13 @@ import '../../features/history/presentation/history_page.dart';
 import '../../features/reports/presentation/reports_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 import '../../features/driver_portal/presentation/driver_trip_page.dart';
+import '../../features/tenant/data/tenant_provider.dart';
+import '../../features/superadmin/presentation/superadmin_dashboard_page.dart';
+import '../../features/superadmin/presentation/pending_approval_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final tenantState = ref.watch(tenantProvider);
 
   return GoRouter(
     initialLocation: '/admin/dashboard',
@@ -39,21 +43,60 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return null; // Do NOT redirect to login
       }
 
-      final hasSession = Supabase.instance.client.auth.currentSession != null;
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final hasSession = currentUser != null;
       final isLoggedIn = (authState.isAuthenticated && (authState.user?.isAdmin ?? false)) || hasSession;
       final isLoggingIn = path == '/login' || path == '/admin/login' || path == '/register';
 
-      if (!isLoggedIn && !isLoggingIn) {
-        return '/login';
+      if (!isLoggedIn) {
+        if (!isLoggingIn) {
+          return '/login';
+        }
+        return null;
       }
 
-      if (isLoggedIn && isLoggingIn) {
-        return '/admin/dashboard';
+      // User is logged in: Check role & status
+      final userEmail = (currentUser?.email ?? authState.user?.email ?? '').trim().toLowerCase();
+      final role = (tenantState.currentProfile?.role ?? (authState.user?.isSuperAdmin ?? false ? 'superadmin' : 'admin')).toLowerCase();
+      final isSuperAdmin = userEmail == 'parthgajjar.bk@gmail.com' || role == 'superadmin' || (authState.user?.isSuperAdmin ?? false);
+
+      if (isSuperAdmin) {
+        if (path != '/superadmin/dashboard') {
+          return '/superadmin/dashboard';
+        }
+        return null;
+      }
+
+      // Regular Admin Role
+      final profileStatus = tenantState.currentProfile?.status.toLowerCase();
+      final status = profileStatus ??
+          ((userEmail == 'admin@airporttransfer.com' || userEmail == 'admin') ? 'approved' : 'pending');
+
+      if (status == 'pending' || status == 'suspended') {
+        if (path != '/pending-approval') {
+          return '/pending-approval';
+        }
+        return null;
+      }
+
+      if (status == 'approved') {
+        if (isLoggingIn || path == '/pending-approval' || path == '/superadmin/dashboard') {
+          return '/admin/dashboard';
+        }
+        return null;
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/superadmin/dashboard',
+        builder: (context, state) => const SuperadminDashboardPage(),
+      ),
+      GoRoute(
+        path: '/pending-approval',
+        builder: (context, state) => const PendingApprovalPage(),
+      ),
       GoRoute(
         path: '/trip/:token',
         name: 'driver-trip',

@@ -1,4 +1,4 @@
-enum UserRole { admin, driver }
+enum UserRole { admin, driver, superadmin }
 
 class AdminModel {
   final String id;
@@ -15,17 +15,23 @@ class AdminModel {
     required this.role,
   });
 
-  bool get isAdmin => role == UserRole.admin;
+  bool get isAdmin => role == UserRole.admin || role == UserRole.superadmin;
+  bool get isSuperAdmin => role == UserRole.superadmin || email.toLowerCase() == 'parthgajjar.bk@gmail.com';
 
   factory AdminModel.fromJson(Map<String, dynamic> json) {
+    final roleStr = (json['role'] as String? ?? '').toLowerCase();
+    final userRole = roleStr == 'superadmin'
+        ? UserRole.superadmin
+        : roleStr == 'admin'
+            ? UserRole.admin
+            : UserRole.driver;
+
     return AdminModel(
       id: json['id'] as String,
       name: json['name'] as String,
       email: json['email'] as String,
       username: json['username'] as String,
-      role: (json['role'] as String).toLowerCase() == 'admin'
-          ? UserRole.admin
-          : UserRole.driver,
+      role: userRole,
     );
   }
 
@@ -34,6 +40,10 @@ class AdminModel {
         'name': name,
         'email': email,
         'username': username,
-        'role': role == UserRole.admin ? 'ADMIN' : 'DRIVER',
+        'role': role == UserRole.superadmin
+            ? 'SUPERADMIN'
+            : role == UserRole.admin
+                ? 'ADMIN'
+                : 'DRIVER',
       };
 }

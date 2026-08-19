@@ -84,6 +84,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           'username': username,
           'email': email,
           'role': 'admin',
+          'status': 'pending',
         });
       } catch (_) {}
 
@@ -95,6 +96,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         username: username,
         email: email,
         role: 'admin',
+        status: 'pending',
       );
       ref.read(tenantProvider.notifier).setTenant(company, profile);
 
