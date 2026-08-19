@@ -1,6 +1,18 @@
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../features/bookings/domain/booking_model.dart';
 
 class WhatsAppService {
+  /// Multi-Day String Formatter
+  static String formatTripDuration(BookingModel booking) {
+    final dateFormat = DateFormat('dd MMM yyyy');
+    if (booking.tripType == 'multi_day' && booking.durationInDays > 1) {
+      final start = booking.startDateTime != null ? dateFormat.format(booking.startDateTime!) : '';
+      final end = booking.endDateTime != null ? dateFormat.format(booking.endDateTime!) : '';
+      return '${booking.durationInDays} Days Package ($start to $end)';
+    }
+    return 'Single Day Transfer';
+  }
   static String _cleanPhone(String phone) {
     String cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleaned.length == 10) cleaned = '91$cleaned';
@@ -28,6 +40,7 @@ class WhatsAppService {
     required String pickupTime,
     String? tripToken,
     String? bookingId,
+    String? durationInfo,
   }) {
     final token = tripToken ?? bookingId ?? '';
     final tripLink = 'https://travelportl.vercel.app/#/trip/$token';
@@ -41,6 +54,9 @@ class WhatsAppService {
     buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
     if (pickupTime.isNotEmpty) {
       buffer.writeln('⏰ *Pickup Time:* $pickupTime');
+    }
+    if (durationInfo != null && durationInfo.isNotEmpty) {
+      buffer.writeln('📅 *Duration:* $durationInfo');
     }
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
     buffer.writeln('📲 *Update Trip Status (Tap Link Below):*');
@@ -58,6 +74,7 @@ class WhatsAppService {
     required String driverPhone,
     String? vehicleName,
     String? vehicleNumber,
+    String? durationInfo,
   }) {
     final buffer = StringBuffer();
     buffer.writeln('🚖 *Your Booking Confirmation — $bookingCode*');
@@ -66,6 +83,9 @@ class WhatsAppService {
     buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
     if (pickupTime.isNotEmpty) {
       buffer.writeln('⏰ *Pickup Time:* $pickupTime');
+    }
+    if (durationInfo != null && durationInfo.isNotEmpty) {
+      buffer.writeln('📅 *Duration:* $durationInfo');
     }
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
     buffer.writeln('👨‍✈️ *Assigned Driver:* $driverName');

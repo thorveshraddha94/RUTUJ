@@ -25,6 +25,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
   late TextEditingController _notesController;
 
   DateTime? _selectedDate;
+  DateTime? _endDate;
+  int _durationDays = 1;
+  String _tripType = 'single_day';
   TimeOfDay? _selectedTime;
   String? _selectedStatus;
   String? _selectedDriverId;
@@ -49,13 +52,37 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     final b = widget.booking;
 
     // Safe extraction
-    final name = _getField(b, ['passenger_name', 'passengerName', 'customer_name', 'guestName', 'guest_name']) ?? '';
-    final phone = _getField(b, ['passenger_phone', 'passengerPhone', 'customer_phone', 'guestMobile', 'guest_mobile']) ?? '';
-    final pickup = _getField(b, ['pickup_location', 'pickupLocation', 'origin']) ?? '';
-    final dropoff = _getField(b, ['dropoff_location', 'dropoffLocation', 'destination']) ?? '';
-    final fare = _getField(b, ['total_fare', 'totalFare', 'fare', 'amount']) ?? '0';
-    final notes = _getField(b, ['notes', 'internalNotes', 'trip_notes', 'remarks']) ?? '';
-    final statusRaw = (_getField(b, ['status', 'booking_status']) ?? 'pending').toString().toLowerCase().trim();
+    final name =
+        _getField(b, [
+          'passenger_name',
+          'passengerName',
+          'customer_name',
+          'guestName',
+          'guest_name',
+        ]) ??
+        '';
+    final phone =
+        _getField(b, [
+          'passenger_phone',
+          'passengerPhone',
+          'customer_phone',
+          'guestMobile',
+          'guest_mobile',
+        ]) ??
+        '';
+    final pickup =
+        _getField(b, ['pickup_location', 'pickupLocation', 'origin']) ?? '';
+    final dropoff =
+        _getField(b, ['dropoff_location', 'dropoffLocation', 'destination']) ??
+        '';
+    final fare =
+        _getField(b, ['total_fare', 'totalFare', 'fare', 'amount']) ?? '0';
+    final notes =
+        _getField(b, ['notes', 'internalNotes', 'trip_notes', 'remarks']) ?? '';
+    final statusRaw = (_getField(b, ['status', 'booking_status']) ?? 'pending')
+        .toString()
+        .toLowerCase()
+        .trim();
 
     _passengerNameController = TextEditingController(text: name);
     _passengerPhoneController = TextEditingController(text: phone);
@@ -64,18 +91,36 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     _fareController = TextEditingController(text: fare.toString());
     _notesController = TextEditingController(text: notes);
 
-    _selectedStatus = _allowedStatuses.contains(statusRaw) ? statusRaw : 'pending';
+    _selectedStatus = _allowedStatuses.contains(statusRaw)
+        ? statusRaw
+        : 'pending';
     _selectedDriverId = _getField(b, ['driver_id', 'driverId'])?.toString();
     _selectedVehicleId = _getField(b, ['vehicle_id', 'vehicleId'])?.toString();
 
+    _tripType = (_getField(b, ['trip_type', 'tripType']) ?? 'single_day')
+        .toString();
+    final durationRaw = _getField(b, ['duration_days', 'durationDays']);
+    _durationDays = int.tryParse(durationRaw ?? '') ?? 1;
+
     // Date & Time extraction
-    final rawTime = _getField(b, ['pickup_time', 'pickupTime', 'pickup_datetime']);
+    final rawTime = _getField(b, [
+      'pickup_time',
+      'pickupTime',
+      'pickup_datetime',
+    ]);
     if (rawTime != null && rawTime.toString().isNotEmpty) {
       final dt = DateTime.tryParse(rawTime.toString());
       if (dt != null) {
         _selectedDate = dt;
         _selectedTime = TimeOfDay.fromDateTime(dt);
       }
+    }
+
+    final rawEndDate = _getField(b, ['end_date', 'endDate']);
+    if (rawEndDate != null && rawEndDate.toString().isNotEmpty) {
+      _endDate = DateTime.tryParse(rawEndDate.toString());
+    } else if (_selectedDate != null && _durationDays > 1) {
+      _endDate = _selectedDate!.add(Duration(days: _durationDays - 1));
     }
 
     _loadData();
@@ -85,7 +130,8 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     if (obj == null) return null;
     if (obj is Map) {
       for (final k in keys) {
-        if (obj[k] != null && obj[k].toString().isNotEmpty) return obj[k].toString();
+        if (obj[k] != null && obj[k].toString().isNotEmpty)
+          return obj[k].toString();
       }
     }
     // Reflection / property access fallback
@@ -93,20 +139,32 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       try {
         if (obj is BookingModel) {
           final json = obj.toSupabase();
-          if (json[k] != null && json[k].toString().isNotEmpty) return json[k].toString();
+          if (json[k] != null && json[k].toString().isNotEmpty)
+            return json[k].toString();
         }
       } catch (_) {}
     }
     try {
-      if (obj.guestName != null && keys.contains('passengerName')) return obj.guestName;
-      if (obj.guestMobile != null && keys.contains('passengerPhone')) return obj.guestMobile;
-      if (obj.pickupLocation != null && keys.contains('pickupLocation')) return obj.pickupLocation;
-      if (obj.destination != null && keys.contains('dropoffLocation')) return obj.destination;
-      if (obj.totalFare != null && keys.contains('totalFare')) return obj.totalFare.toString();
-      if (obj.internalNotes != null && keys.contains('notes')) return obj.internalNotes;
-      if (obj.driverId != null && keys.contains('driverId')) return obj.driverId;
-      if (obj.vehicleId != null && keys.contains('vehicleId')) return obj.vehicleId;
-      if (obj.status != null && keys.contains('status')) return obj.status is BookingStatus ? (obj.status as BookingStatus).name : obj.status.toString();
+      if (obj.guestName != null && keys.contains('passengerName'))
+        return obj.guestName;
+      if (obj.guestMobile != null && keys.contains('passengerPhone'))
+        return obj.guestMobile;
+      if (obj.pickupLocation != null && keys.contains('pickupLocation'))
+        return obj.pickupLocation;
+      if (obj.destination != null && keys.contains('dropoffLocation'))
+        return obj.destination;
+      if (obj.totalFare != null && keys.contains('totalFare'))
+        return obj.totalFare.toString();
+      if (obj.internalNotes != null && keys.contains('notes'))
+        return obj.internalNotes;
+      if (obj.driverId != null && keys.contains('driverId'))
+        return obj.driverId;
+      if (obj.vehicleId != null && keys.contains('vehicleId'))
+        return obj.vehicleId;
+      if (obj.status != null && keys.contains('status'))
+        return obj.status is BookingStatus
+            ? (obj.status as BookingStatus).name
+            : obj.status.toString();
     } catch (_) {}
     return null;
   }
@@ -127,7 +185,11 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       final user = _supabase.auth.currentUser;
       String? companyId;
       if (user != null) {
-        final profile = await _supabase.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
+        final profile = await _supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .maybeSingle();
         companyId = profile?['company_id']?.toString();
       }
 
@@ -250,6 +312,15 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         updates['vehicle_id'] = null;
       }
 
+      updates['trip_type'] = _tripType;
+      if (_selectedDate != null) {
+        updates['start_date'] = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+      }
+      if (_endDate != null) {
+        updates['end_date'] = DateFormat('yyyy-MM-dd').format(_endDate!);
+      }
+      updates['duration_days'] = _durationDays;
+
       if (combinedPickupTime != null) {
         updates['pickup_time'] = combinedPickupTime.toIso8601String();
         updates['pickup_datetime'] = combinedPickupTime.toIso8601String();
@@ -288,7 +359,13 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd MMM yyyy');
-    final code = _getField(widget.booking, ['booking_code', 'displayCode', 'reference_code']) ?? 'BK';
+    final code =
+        _getField(widget.booking, [
+          'booking_code',
+          'displayCode',
+          'reference_code',
+        ]) ??
+        'BK';
 
     return Dialog(
       backgroundColor: const Color(0xFF131E2E),
@@ -302,7 +379,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         child: _isLoading
             ? const SizedBox(
                 height: 300,
-                child: Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8))),
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF38BDF8)),
+                ),
               )
             : Form(
                 key: _formKey,
@@ -316,11 +395,19 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.edit_note, color: Color(0xFF38BDF8), size: 26),
+                            const Icon(
+                              Icons.edit_note,
+                              color: Color(0xFF38BDF8),
+                              size: 26,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Edit Booking — $code',
-                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -340,27 +427,68 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // 1. Passenger Details
-                            const Text('1. Passenger Information', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const Text(
+                              '1. Passenger Information',
+                              style: TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                Expanded(child: _buildTextField('Passenger Name *', _passengerNameController, Icons.person_outline)),
+                                Expanded(
+                                  child: _buildTextField(
+                                    'Passenger Name *',
+                                    _passengerNameController,
+                                    Icons.person_outline,
+                                  ),
+                                ),
                                 const SizedBox(width: 12),
-                                Expanded(child: _buildTextField('Contact Phone *', _passengerPhoneController, Icons.phone_outlined)),
+                                Expanded(
+                                  child: _buildTextField(
+                                    'Contact Phone *',
+                                    _passengerPhoneController,
+                                    Icons.phone_outlined,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 16),
 
                             // 2. Route
-                            const Text('2. Trip Route Details', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const Text(
+                              '2. Trip Route Details',
+                              style: TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 8),
-                            _buildTextField('Pickup Address *', _pickupController, Icons.trip_origin),
+                            _buildTextField(
+                              'Pickup Address *',
+                              _pickupController,
+                              Icons.trip_origin,
+                            ),
                             const SizedBox(height: 12),
-                            _buildTextField('Dropoff Address *', _dropoffController, Icons.location_on_outlined),
+                            _buildTextField(
+                              'Dropoff Address *',
+                              _dropoffController,
+                              Icons.location_on_outlined,
+                            ),
                             const SizedBox(height: 16),
 
                             // 3. Schedule & Fare
-                            const Text('3. Schedule & Fare', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const Text(
+                              '3. Schedule & Fare',
+                              style: TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -369,7 +497,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                     onTap: _pickDate,
                                     child: _buildPickerContainer(
                                       label: 'Pickup Date',
-                                      value: _selectedDate != null ? dateFormat.format(_selectedDate!) : 'Select Date',
+                                      value: _selectedDate != null
+                                          ? dateFormat.format(_selectedDate!)
+                                          : 'Select Date',
                                       icon: Icons.calendar_today_outlined,
                                     ),
                                   ),
@@ -380,19 +510,34 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                     onTap: _pickTime,
                                     child: _buildPickerContainer(
                                       label: 'Pickup Time',
-                                      value: _selectedTime != null ? _selectedTime!.format(context) : 'Select Time',
+                                      value: _selectedTime != null
+                                          ? _selectedTime!.format(context)
+                                          : 'Select Time',
                                       icon: Icons.access_time,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Expanded(child: _buildTextField('Fare (₹)', _fareController, Icons.currency_rupee)),
+                                Expanded(
+                                  child: _buildTextField(
+                                    'Fare (₹)',
+                                    _fareController,
+                                    Icons.currency_rupee,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 16),
 
                             // 4. Driver & Vehicle
-                            const Text('4. Fleet Assignment & Status', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold)),
+                            const Text(
+                              '4. Fleet Assignment & Status',
+                              style: TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -400,13 +545,31 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                   child: DropdownButtonFormField<String?>(
                                     value: _selectedDriverId,
                                     dropdownColor: const Color(0xFF0F172A),
-                                    decoration: _dropdownDecoration('Assigned Driver', Icons.badge_outlined),
+                                    decoration: _dropdownDecoration(
+                                      'Assigned Driver',
+                                      Icons.badge_outlined,
+                                    ),
                                     items: [
-                                      const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', style: TextStyle(color: Colors.grey))),
-                                      ..._drivers.map((d) => DropdownMenuItem<String?>(
-                                            value: d['id'].toString(),
-                                            child: Text(d['name'] ?? d['full_name'] ?? 'Driver', style: const TextStyle(color: Colors.white)),
-                                          )),
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text(
+                                          'Unassigned',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ),
+                                      ..._drivers.map(
+                                        (d) => DropdownMenuItem<String?>(
+                                          value: d['id'].toString(),
+                                          child: Text(
+                                            d['name'] ??
+                                                d['full_name'] ??
+                                                'Driver',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                     onChanged: _onDriverChanged,
                                   ),
@@ -416,15 +579,33 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                   child: DropdownButtonFormField<String?>(
                                     value: _selectedVehicleId,
                                     dropdownColor: const Color(0xFF0F172A),
-                                    decoration: _dropdownDecoration('Assigned Vehicle', Icons.directions_car_outlined),
+                                    decoration: _dropdownDecoration(
+                                      'Assigned Vehicle',
+                                      Icons.directions_car_outlined,
+                                    ),
                                     items: [
-                                      const DropdownMenuItem<String?>(value: null, child: Text('No Vehicle', style: TextStyle(color: Colors.grey))),
-                                      ..._vehicles.map((v) => DropdownMenuItem<String?>(
-                                            value: v['id'].toString(),
-                                            child: Text('${v['model'] ?? v['make'] ?? "Car"} (${v['registration_number'] ?? v['plate_number'] ?? ""})', style: const TextStyle(color: Colors.white)),
-                                          )),
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text(
+                                          'No Vehicle',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ),
+                                      ..._vehicles.map(
+                                        (v) => DropdownMenuItem<String?>(
+                                          value: v['id'].toString(),
+                                          child: Text(
+                                            '${v['model'] ?? v['make'] ?? "Car"} (${v['registration_number'] ?? v['plate_number'] ?? ""})',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
-                                    onChanged: (val) => setState(() => _selectedVehicleId = val),
+                                    onChanged: (val) => setState(
+                                      () => _selectedVehicleId = val,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -438,19 +619,70 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                   child: DropdownButtonFormField<String>(
                                     value: _selectedStatus,
                                     dropdownColor: const Color(0xFF0F172A),
-                                    decoration: _dropdownDecoration('Status', Icons.flag_outlined),
+                                    decoration: _dropdownDecoration(
+                                      'Status',
+                                      Icons.flag_outlined,
+                                    ),
                                     items: const [
-                                      DropdownMenuItem(value: 'pending', child: Text('Pending', style: TextStyle(color: Colors.orangeAccent))),
-                                      DropdownMenuItem(value: 'assigned', child: Text('Assigned', style: TextStyle(color: Colors.amberAccent))),
-                                      DropdownMenuItem(value: 'in_progress', child: Text('In Progress', style: TextStyle(color: Colors.blueAccent))),
-                                      DropdownMenuItem(value: 'completed', child: Text('Completed', style: TextStyle(color: Colors.greenAccent))),
-                                      DropdownMenuItem(value: 'cancelled', child: Text('Cancelled', style: TextStyle(color: Colors.redAccent))),
+                                      DropdownMenuItem(
+                                        value: 'pending',
+                                        child: Text(
+                                          'Pending',
+                                          style: TextStyle(
+                                            color: Colors.orangeAccent,
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'assigned',
+                                        child: Text(
+                                          'Assigned',
+                                          style: TextStyle(
+                                            color: Colors.amberAccent,
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'in_progress',
+                                        child: Text(
+                                          'In Progress',
+                                          style: TextStyle(
+                                            color: Colors.blueAccent,
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'completed',
+                                        child: Text(
+                                          'Completed',
+                                          style: TextStyle(
+                                            color: Colors.greenAccent,
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'cancelled',
+                                        child: Text(
+                                          'Cancelled',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                          ),
+                                        ),
+                                      ),
                                     ],
-                                    onChanged: (val) => setState(() => _selectedStatus = val),
+                                    onChanged: (val) =>
+                                        setState(() => _selectedStatus = val),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Expanded(child: _buildTextField('Notes', _notesController, Icons.notes_outlined, required: false)),
+                                Expanded(
+                                  child: _buildTextField(
+                                    'Notes',
+                                    _notesController,
+                                    Icons.notes_outlined,
+                                    required: false,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -468,19 +700,44 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                       children: [
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Color(0xFF94A3B8)),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0284C7),
-                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           icon: _isSaving
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.save_outlined, size: 18, color: Colors.white),
-                          label: Text(_isSaving ? 'Updating...' : 'Save Changes', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.save_outlined,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                          label: Text(
+                            _isSaving ? 'Updating...' : 'Save Changes',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           onPressed: _isSaving ? null : _saveChanges,
                         ),
                       ],
@@ -492,7 +749,11 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     );
   }
 
-  Widget _buildPickerContainer({required String label, required String value, required IconData icon}) {
+  Widget _buildPickerContainer({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -509,8 +770,21 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 11,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -527,12 +801,23 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       filled: true,
       fillColor: const Color(0xFF0F172A),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF1F2E45)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF1F2E45)),
+      ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool required = true}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    bool required = true,
+  }) {
     return TextFormField(
       controller: controller,
       style: const TextStyle(color: Colors.white, fontSize: 13),
@@ -542,11 +827,22 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
         filled: true,
         fillColor: const Color(0xFF0F172A),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1F2E45)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1F2E45)),
+        ),
       ),
-      validator: required ? (val) => val == null || val.trim().isEmpty ? 'Required' : null : null,
+      validator: required
+          ? (val) => val == null || val.trim().isEmpty ? 'Required' : null
+          : null,
     );
   }
 }

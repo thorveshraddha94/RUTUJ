@@ -43,7 +43,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _dropNotesController = TextEditingController();
 
   // Section 3: Schedule & Pricing
+  String _tripType = 'single_day'; // 'single_day' or 'multi_day'
   DateTime _pickupDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
+  int _durationDays = 1;
   TimeOfDay _pickupTime = const TimeOfDay(hour: 10, minute: 0);
   final _totalFareController = TextEditingController();
 
@@ -122,9 +125,15 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     setState(() => _isSubmitting = true);
 
     try {
+      final combinedStartDateTime = DateTime(
+        _pickupDate.year,
+        _pickupDate.month,
+        _pickupDate.day,
+        _pickupTime.hour,
+        _pickupTime.minute,
+      );
       final pickupDateStr = DateFormat('yyyy-MM-dd').format(_pickupDate);
       final pickupTimeStr = _pickupTime.format(context);
-      final pickupDateTimeStr = '$pickupDateStr $pickupTimeStr';
       final totalFare = double.tryParse(_totalFareController.text.trim()) ?? 0.0;
 
       final payload = <String, dynamic>{
@@ -141,8 +150,12 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
         'destination': _destinationController.text.trim().isNotEmpty
             ? _destinationController.text.trim()
             : _destinationAddressController.text.trim(),
-        'pickup_time': pickupDateTimeStr,
-        'pickup_datetime': pickupDateTimeStr,
+        'trip_type': _tripType,
+        'start_date': _pickupDate.toIso8601String().split('T')[0],
+        'end_date': _endDate.toIso8601String().split('T')[0],
+        'duration_days': _durationDays,
+        'pickup_time': combinedStartDateTime.toIso8601String(),
+        'pickup_datetime': combinedStartDateTime.toIso8601String(),
         'total_fare': totalFare,
         'amount': totalFare,
         'status': 'assigned',
@@ -195,6 +208,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             status: BookingStatus.assigned,
             createdAt: DateTime.now(),
             timeline: const [],
+            tripType: _tripType,
+            startDate: DateFormat('yyyy-MM-dd').format(_pickupDate),
+            endDate: DateFormat('yyyy-MM-dd').format(_endDate),
+            durationDays: _durationDays,
           );
 
           showDialog(
@@ -421,54 +438,195 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                 title: 'Schedule & Pricing',
                 icon: Icons.calendar_month_outlined,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Trip Type Selector
                     Row(
                       children: [
-                        Expanded(
-                          child: ListTile(
-                            tileColor: AppColors.secondarySurface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            leading: const Icon(Icons.calendar_month, color: AppColors.primary),
-                            title: const Text('Pickup Date *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            subtitle: Text(DateFormat('dd MMM yyyy').format(_pickupDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _pickupDate,
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
-                              );
-                              if (picked != null) setState(() => _pickupDate = picked);
-                            },
-                          ),
+                        _buildTripTypeChip(
+                          label: 'Single Day Transfer',
+                          isSelected: _tripType == 'single_day',
+                          onTap: () {
+                            setState(() {
+                              _tripType = 'single_day';
+                              _durationDays = 1;
+                              _endDate = _pickupDate;
+                            });
+                          },
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ListTile(
-                            tileColor: AppColors.secondarySurface,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            leading: const Icon(Icons.access_time, color: AppColors.primary),
-                            title: const Text('Pickup Time *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                            subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
-                            onTap: () async {
-                              final picked = await showTimePicker(context: context, initialTime: _pickupTime);
-                              if (picked != null) setState(() => _pickupTime = picked);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _totalFareController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Total Fare / Amount (\$)',
-                              prefixText: '\$ ',
-                            ),
-                          ),
+                        const SizedBox(width: 12),
+                        _buildTripTypeChip(
+                          label: 'Multi-Day Package (e.g. 5 Days)',
+                          isSelected: _tripType == 'multi_day',
+                          onTap: () {
+                            setState(() {
+                              _tripType = 'multi_day';
+                              if (_durationDays <= 1) {
+                                _durationDays = 5;
+                                _endDate = _pickupDate.add(const Duration(days: 4));
+                              }
+                            });
+                          },
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+
+                    if (_tripType == 'single_day') ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ListTile(
+                              tileColor: AppColors.secondarySurface,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              leading: const Icon(Icons.calendar_month, color: AppColors.primary),
+                              title: const Text('Pickup Date *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                              subtitle: Text(DateFormat('dd MMM yyyy').format(_pickupDate), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _pickupDate,
+                                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    _pickupDate = picked;
+                                    _endDate = picked;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ListTile(
+                              tileColor: AppColors.secondarySurface,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              leading: const Icon(Icons.access_time, color: AppColors.primary),
+                              title: const Text('Pickup Time *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                              subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                              onTap: () async {
+                                final picked = await showTimePicker(context: context, initialTime: _pickupTime);
+                                if (picked != null) setState(() => _pickupTime = picked);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _totalFareController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Total Fare / Amount (\$)',
+                                prefixText: '\$ ',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: ListTile(
+                              tileColor: AppColors.secondarySurface,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              leading: const Icon(Icons.date_range, color: AppColors.primary),
+                              title: const Text('Trip Date Range *', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                              subtitle: Text(
+                                '${DateFormat('dd MMM').format(_pickupDate)} ➔ ${DateFormat('dd MMM yyyy').format(_endDate)} ($_durationDays Days)',
+                                style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
+                              ),
+                              onTap: () async {
+                                final pickedRange = await showDateRangePicker(
+                                  context: context,
+                                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                  initialDateRange: DateTimeRange(start: _pickupDate, end: _endDate),
+                                );
+                                if (pickedRange != null) {
+                                  setState(() {
+                                    _pickupDate = pickedRange.start;
+                                    _endDate = pickedRange.end;
+                                    _durationDays = pickedRange.end.difference(pickedRange.start).inDays + 1;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondarySurface,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('Duration', style: TextStyle(color: AppColors.secondaryText, fontSize: 11)),
+                                      Text('$_durationDays Days', style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, size: 20, color: AppColors.secondaryText),
+                                        onPressed: _durationDays > 2
+                                            ? () => setState(() {
+                                                  _durationDays--;
+                                                  _endDate = _pickupDate.add(Duration(days: _durationDays - 1));
+                                                })
+                                            : null,
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.add_circle_outline, size: 20, color: AppColors.primary),
+                                        onPressed: () => setState(() {
+                                          _durationDays++;
+                                          _endDate = _pickupDate.add(Duration(days: _durationDays - 1));
+                                        }),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ListTile(
+                              tileColor: AppColors.secondarySurface,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              leading: const Icon(Icons.access_time, color: AppColors.primary),
+                              title: const Text('Daily Pickup Time', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                              subtitle: Text(_pickupTime.format(context), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold)),
+                              onTap: () async {
+                                final picked = await showTimePicker(context: context, initialTime: _pickupTime);
+                                if (picked != null) setState(() => _pickupTime = picked);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _totalFareController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Total Package Fare (\$)',
+                                prefixText: '\$ ',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -792,6 +950,29 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTripTypeChip({required String label, required bool isSelected, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0284C7) : AppColors.secondarySurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? const Color(0xFF38BDF8) : AppColors.border),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.secondaryText,
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }

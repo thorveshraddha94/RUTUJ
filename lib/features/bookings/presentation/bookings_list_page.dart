@@ -220,7 +220,30 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                                             ),
                                           ),
                                         ),
-                                        DataCell(Text('${b.pickupDate}\n${b.pickupTime}', style: const TextStyle(color: AppColors.primaryText, fontSize: 12))),
+                                         DataCell(
+                                           Column(
+                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                             mainAxisAlignment: MainAxisAlignment.center,
+                                             children: [
+                                               Text('${b.pickupDate}\n${b.pickupTime}', style: const TextStyle(color: AppColors.primaryText, fontSize: 12)),
+                                               if (b.isMultiDay) ...[
+                                                 const SizedBox(height: 2),
+                                                 Container(
+                                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                   decoration: BoxDecoration(
+                                                     color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                                     borderRadius: BorderRadius.circular(4),
+                                                     border: Border.all(color: const Color(0xFFF59E0B)),
+                                                   ),
+                                                   child: Text(
+                                                     '${b.durationInDays} DAYS PACKAGE',
+                                                     style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 10, fontWeight: FontWeight.bold),
+                                                   ),
+                                                 ),
+                                               ],
+                                             ],
+                                           ),
+                                         ),
                                         DataCell(Text(b.flightNumber.isNotEmpty ? '${b.flightNumber} (${b.terminal})' : 'N/A', style: const TextStyle(color: AppColors.primaryText))),
                                         DataCell(Text(b.driverName ?? 'Unassigned', style: TextStyle(color: b.driverName != null ? AppColors.primaryText : AppColors.danger, fontWeight: b.driverName != null ? FontWeight.normal : FontWeight.w600))),
                                         DataCell(Text(b.vehicleType ?? 'Sedan', style: const TextStyle(color: AppColors.primaryText))),

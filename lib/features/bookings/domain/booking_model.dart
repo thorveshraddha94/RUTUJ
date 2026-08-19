@@ -64,6 +64,18 @@ class BookingModel {
   String? get vehicleNumber => vehicleRegistration;
   String? get driverPhone => driverMobile;
 
+  // Multi-day trip properties
+  final String tripType; // 'single_day' or 'multi_day'
+  final String? startDate;
+  final String? endDate;
+  final int durationDays;
+
+  int get durationInDays => durationDays > 0 ? durationDays : 1;
+  bool get isMultiDay => tripType == 'multi_day' || durationInDays > 1;
+  DateTime? get startDateTime => startDate != null ? DateTime.tryParse(startDate!) : null;
+  DateTime? get endDateTime => endDate != null ? DateTime.tryParse(endDate!) : null;
+  String get pickupTimeFormatted => pickupTime;
+
   String get displayCode {
     if (referenceCode.isNotEmpty && !referenceCode.startsWith('REF-') && referenceCode.length <= 12) {
       return referenceCode;
@@ -164,6 +176,10 @@ class BookingModel {
     this.cancellationReason,
     required this.timeline,
     this.totalFare = 0.0,
+    this.tripType = 'single_day',
+    this.startDate,
+    this.endDate,
+    this.durationDays = 1,
   });
 
   BookingModel copyWith({
@@ -417,6 +433,10 @@ class BookingModel {
               .toList() ??
           [],
       totalFare: double.tryParse(json['total_fare']?.toString() ?? json['amount']?.toString() ?? json['totalFare']?.toString() ?? '') ?? 0.0,
+      tripType: (json['trip_type'] ?? json['tripType'] ?? 'single_day').toString(),
+      startDate: json['start_date']?.toString() ?? json['startDate']?.toString(),
+      endDate: json['end_date']?.toString() ?? json['endDate']?.toString(),
+      durationDays: int.tryParse(json['duration_days']?.toString() ?? json['durationDays']?.toString() ?? '') ?? 1,
     );
   }
 
