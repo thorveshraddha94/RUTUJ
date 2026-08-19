@@ -14,6 +14,8 @@ class SuperadminRepository {
       final response = await _supabase
           .from('profiles')
           .select('*')
+          .neq('role', 'superadmin')
+          .neq('email', 'parthgajjar.bk@gmail.com')
           .order('created_at', ascending: false);
 
       print('📦 [SuperadminRepo] Live profiles count: ${(response as List).length}');
@@ -25,7 +27,7 @@ class SuperadminRepository {
     } catch (e, st) {
       print('❌ [SuperadminRepo] Fetch error: $e');
       print(st);
-      return []; // Return empty list on failure - NEVER mock data
+      return [];
     }
   }
 
@@ -73,13 +75,17 @@ class SuperadminState {
     );
   }
 
-  int get totalWorkspaces => admins.length;
-  int get pendingApprovals => admins.where((a) => a.isPending).length;
-  int get activeApproved => admins.where((a) => a.isApproved).length;
-  int get suspended => admins.where((a) => a.isSuspended).length;
+  int get totalWorkspaces => admins.where((a) => !a.isSuperAdmin).length;
+  int get pendingApprovals => admins.where((a) => !a.isSuperAdmin && a.isPending).length;
+  int get activeApproved => admins.where((a) => !a.isSuperAdmin && a.isApproved).length;
+  int get suspended => admins.where((a) => !a.isSuperAdmin && a.isSuspended).length;
 
   List<AdminProfileModel> get filteredAdmins {
     return admins.where((admin) {
+      // Exclude superadmin accounts from tenant table directory
+      if (admin.isSuperAdmin || admin.email.toLowerCase() == 'parthgajjar.bk@gmail.com' || admin.role.toLowerCase() == 'superadmin') {
+        return false;
+      }
       // Filter by status
       if (filterStatus != 'all') {
         if (filterStatus == 'pending' && !admin.isPending) return false;

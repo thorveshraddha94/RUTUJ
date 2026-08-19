@@ -19,18 +19,34 @@ class AdminProfileModel {
     String? role,
     String? status,
     DateTime? createdAt,
-  })  : email = (email == null || email.isEmpty) ? 'No Email' : email,
-        username = (username == null || username.isEmpty) ? 'User' : username,
-        companyName = (companyName == null || companyName.isEmpty) ? 'Unnamed Workspace' : companyName,
-        phone = (phone == null || phone.isEmpty) ? '—' : phone,
-        role = (role == null || role.isEmpty) ? 'admin' : role.toLowerCase(),
-        status = (status == null || status.isEmpty) ? 'pending' : status.toLowerCase(),
+  })  : email = (email == null || email.isEmpty) ? 'No Email' : email.trim(),
+        username = (username == null || username.isEmpty) ? 'User' : username.trim(),
+        companyName = (companyName == null || companyName.isEmpty) ? 'Unnamed Workspace' : companyName.trim(),
+        phone = (phone == null || phone.isEmpty) ? '—' : phone.trim(),
+        role = (role == null || role.isEmpty) ? 'admin' : role.toLowerCase().trim(),
+        status = (status == null || status.isEmpty) ? 'approved' : status.toLowerCase().trim(),
         createdAt = createdAt ?? DateTime.now();
 
-  bool get isApproved => status.toLowerCase() == 'approved';
-  bool get isPending => status.toLowerCase() == 'pending';
-  bool get isSuspended => status.toLowerCase() == 'suspended';
-  bool get isSuperAdmin => role.toLowerCase() == 'superadmin' || email.toLowerCase() == 'parthgajjar.bk@gmail.com';
+  bool get isApproved {
+    final s = status.toLowerCase().trim();
+    return s == 'approved' || s == 'active';
+  }
+
+  bool get isPending {
+    final s = status.toLowerCase().trim();
+    return s == 'pending';
+  }
+
+  bool get isSuspended {
+    final s = status.toLowerCase().trim();
+    return s == 'suspended' || s == 'blocked';
+  }
+
+  bool get isSuperAdmin {
+    final r = role.toLowerCase().trim();
+    final e = email.toLowerCase().trim();
+    return r == 'superadmin' || e == 'parthgajjar.bk@gmail.com';
+  }
 
   factory AdminProfileModel.fromJson(Map<String, dynamic> json) {
     String? compName;
@@ -42,16 +58,16 @@ class AdminProfileModel {
       compName = json['company']?.toString();
     }
 
-    final rawEmail = (json['email'] ?? json['username'] ?? 'No Email').toString();
-    final rawUsername = (json['username'] ?? json['email'] ?? 'User').toString();
-    final rawRole = (json['role'] ?? ((rawEmail.toLowerCase() == 'parthgajjar.bk@gmail.com') ? 'superadmin' : 'admin')).toString().toLowerCase();
+    final rawEmail = (json['email'] ?? json['username'] ?? 'No Email').toString().trim();
+    final rawUsername = (json['username'] ?? json['email'] ?? 'User').toString().trim();
+    final rawRole = (json['role'] ?? ((rawEmail.toLowerCase() == 'parthgajjar.bk@gmail.com') ? 'superadmin' : 'admin')).toString().toLowerCase().trim();
 
-    final rawStatus = json['status']?.toString().toLowerCase();
-    final derivedStatus = rawStatus ??
-        ((rawEmail.toLowerCase() == 'parthgajjar.bk@gmail.com' ||
-                rawRole == 'superadmin')
+    final rawStatus = json['status']?.toString().toLowerCase().trim();
+    final derivedStatus = (rawStatus != null && rawStatus.isNotEmpty)
+        ? rawStatus
+        : ((rawEmail.toLowerCase() == 'parthgajjar.bk@gmail.com' || rawRole == 'superadmin')
             ? 'approved'
-            : 'pending');
+            : 'approved');
 
     return AdminProfileModel(
       id: json['id']?.toString() ?? '',

@@ -50,11 +50,12 @@ class TenantNotifier extends StateNotifier<TenantState> {
     try {
       final client = Supabase.instance.client;
 
-      // 1. Fetch user profile
+      // 1. Fetch user profile by ID or email
+      final email = user.email?.trim() ?? '';
       final profileRes = await client
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
+          .or('id.eq.${user.id},email.ilike.$email')
           .maybeSingle();
 
       if (profileRes != null) {

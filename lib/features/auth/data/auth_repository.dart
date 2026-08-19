@@ -8,12 +8,16 @@ class AuthState {
   final bool isLoading;
   final String? errorMessage;
   final bool isAuthenticated;
+  final UserRole role;
+  final UserStatus status;
 
   const AuthState({
     this.user,
     this.isLoading = false,
     this.errorMessage,
     this.isAuthenticated = false,
+    this.role = UserRole.admin,
+    this.status = UserStatus.approved,
   });
 
   AuthState copyWith({
@@ -21,12 +25,16 @@ class AuthState {
     bool? isLoading,
     String? errorMessage,
     bool? isAuthenticated,
+    UserRole? role,
+    UserStatus? status,
   }) {
     return AuthState(
       user: user ?? this.user,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      role: role ?? (user?.role ?? this.role),
+      status: status ?? (user?.status ?? this.status),
     );
   }
 }
@@ -45,19 +53,72 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _checkCurrentSession();
   }
 
-  void _checkCurrentSession() {
+  Future<void> _checkCurrentSession() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
+      await checkUserRole(user);
+    }
+  }
+
+  Future<void> checkUserRole(User user) async {
+    try {
+      // 1. Query profile by auth user id or email (case-insensitive)
+      final res = await Supabase.instance.client
+          .from('profiles')
+          .select('role, status, company_id')
+          .or('id.eq.${user.id},email.ilike.${user.email ?? ''}')
+          .maybeSingle();
+
+      final rawRole = (res?['role'] ?? 'admin').toString().toLowerCase().trim();
+      final rawStatus = (res?['status'] ?? 'approved').toString().toLowerCase().trim();
+
+      // 2. Determine Role
+      final isSuperadmin = rawRole == 'superadmin' ||
+          user.email?.toLowerCase().trim() == 'parthgajjar.bk@gmail.com';
+
+      final role = isSuperadmin ? UserRole.superadmin : UserRole.admin;
+
+      // 3. Determine Status (Support both 'approved' and 'active')
+      UserStatus status;
+      if (isSuperadmin || rawStatus == 'approved' || rawStatus == 'active') {
+        status = UserStatus.approved;
+      } else if (rawStatus == 'suspended' || rawStatus == 'blocked') {
+        status = UserStatus.suspended;
+      } else {
+        status = UserStatus.pending;
+      }
+
       final username = (user.userMetadata?['username'] as String?) ?? user.email?.split('@').first ?? 'admin';
-      final name = (user.userMetadata?['company_name'] as String?) ?? username;
+      final companyName = (user.userMetadata?['company_name'] as String?) ?? username;
+
       state = AuthState(
         user: AdminModel(
           id: user.id,
-          name: name,
+          name: companyName,
+          email: user.email ?? '',
+          username: username,
+          role: role,
+          status: status,
+        ),
+        role: role,
+        status: status,
+        isAuthenticated: true,
+        isLoading: false,
+      );
+    } catch (e) {
+      print('⚠️ [AuthNotifier] Profile role check error: $e');
+      final username = (user.userMetadata?['username'] as String?) ?? user.email?.split('@').first ?? 'admin';
+      state = AuthState(
+        user: AdminModel(
+          id: user.id,
+          name: username,
           email: user.email ?? '',
           username: username,
           role: UserRole.admin,
+          status: UserStatus.approved,
         ),
+        role: UserRole.admin,
+        status: UserStatus.approved,
         isAuthenticated: true,
         isLoading: false,
       );
@@ -78,23 +139,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final user = response.user;
       if (user != null) {
-        final username = (user.userMetadata?['username'] as String?) ?? identifier;
-        final companyName = (user.userMetadata?['company_name'] as String?) ?? 'Airport Operations';
-
-        final admin = AdminModel(
-          id: user.id,
-          name: companyName,
-          email: user.email ?? identifier,
-          username: username,
-          role: UserRole.admin,
-        );
-
-        state = AuthState(
-          user: admin,
-          isAuthenticated: true,
-          isLoading: false,
-        );
-
+        await checkUserRole(user);
         await _ref.read(tenantProvider.notifier).loadTenant();
         return true;
       }
@@ -108,7 +153,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         return false;
       }
-      // If AuthException is invalid credentials, test local fallback first before showing error
     } catch (_) {}
 
     if ((identifier.toLowerCase() == 'admin' || identifier.toLowerCase() == 'admin@airporttransfer.com') &&
@@ -119,9 +163,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: 'admin@airporttransfer.com',
         username: 'admin',
         role: UserRole.admin,
+        status: UserStatus.approved,
       );
       state = const AuthState(
         user: admin,
+        role: UserRole.admin,
+        status: UserStatus.approved,
         isAuthenticated: true,
         isLoading: false,
       );
@@ -155,4 +202,3 @@ class AuthNotifier extends StateNotifier<AuthState> {
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref);
 });
-

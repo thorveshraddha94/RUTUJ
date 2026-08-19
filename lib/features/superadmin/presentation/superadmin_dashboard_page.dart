@@ -203,405 +203,16 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // STAT SUMMARY CARDS: Total Workspaces, Pending Approvals, Active/Approved, Suspended
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 700;
-                      final cardWidth = isMobile ? (constraints.maxWidth - 12) / 2 : (constraints.maxWidth - 36) / 4;
-
-                      return Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          _buildStatCard(
-                            width: cardWidth,
-                            title: 'Total Workspaces',
-                            count: state.totalWorkspaces,
-                            icon: Icons.business_rounded,
-                            iconColor: AppColors.primary,
-                            isSelected: state.filterStatus == 'all',
-                            onTap: () => notifier.setFilterStatus('all'),
-                          ),
-                          _buildStatCard(
-                            width: cardWidth,
-                            title: 'Pending Approvals',
-                            count: state.pendingApprovals,
-                            icon: Icons.pending_actions_rounded,
-                            iconColor: AppColors.warning,
-                            isSelected: state.filterStatus == 'pending',
-                            onTap: () => notifier.setFilterStatus('pending'),
-                          ),
-                          _buildStatCard(
-                            width: cardWidth,
-                            title: 'Active / Approved',
-                            count: state.activeApproved,
-                            icon: Icons.check_circle_outline_rounded,
-                            iconColor: AppColors.success,
-                            isSelected: state.filterStatus == 'approved',
-                            onTap: () => notifier.setFilterStatus('approved'),
-                          ),
-                          _buildStatCard(
-                            width: cardWidth,
-                            title: 'Suspended',
-                            count: state.suspended,
-                            icon: Icons.pause_circle_outline_rounded,
-                            iconColor: AppColors.danger,
-                            isSelected: state.filterStatus == 'suspended',
-                            onTap: () => notifier.setFilterStatus('suspended'),
-                          ),
-                        ],
-                      );
-                    },
+                  // SLIM COMPACT KPI STAT CARDS ROW (height 72px)
+                  _buildStatsRow(
+                    state.admins,
+                    filterStatus: state.filterStatus,
+                    onSelectFilter: (status) => notifier.setFilterStatus(status),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // FILTER & SEARCH TOOLBAR
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'Tenant Admin Directory',
-                              style: TextStyle(
-                                color: AppColors.primaryText,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            // Search input
-                            SizedBox(
-                              width: 280,
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: (val) => notifier.setSearchQuery(val),
-                                decoration: InputDecoration(
-                                  hintText: 'Search username, company, email...',
-                                  hintStyle: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
-                                  prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondaryText),
-                                  suffixIcon: _searchController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear, size: 16),
-                                          onPressed: () {
-                                            _searchController.clear();
-                                            notifier.setSearchQuery('');
-                                          },
-                                        )
-                                      : null,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                                  isDense: true,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ADMINS DATA TABLE
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: state.isLoading
-                        ? Padding(
-                            padding: const EdgeInsets.all(48),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Loading admin workspaces...',
-                                  style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
-                                ),
-                              ],
-                            ),
-                          )
-                        : state.filteredAdmins.isEmpty
-                            ? Padding(
-                                padding: const EdgeInsets.all(48),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.people_outline, size: 48, color: Colors.blueGrey),
-                                      const SizedBox(height: 12),
-                                      const Text(
-                                        'No registered tenant admins found.',
-                                        style: TextStyle(color: Colors.white70, fontSize: 16),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      ElevatedButton.icon(
-                                        icon: const Icon(Icons.refresh, size: 18),
-                                        label: const Text('Refresh'),
-                                        onPressed: () => ref.read(superadminNotifierProvider.notifier).loadAdmins(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              headingRowHeight: 52,
-                              dataRowMaxHeight: 64,
-                              horizontalMargin: 20,
-                              columnSpacing: 24,
-                              headingRowColor: WidgetStateProperty.all(AppColors.secondarySurface),
-                              columns: const [
-                                DataColumn(
-                                  label: Text(
-                                    'Username / Email',
-                                    style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Company Name',
-                                    style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Contact Phone',
-                                    style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Status',
-                                    style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Joined Date',
-                                    style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Actions',
-                                    style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                              rows: state.filteredAdmins.map((admin) {
-                                final isSuperAdminAccount = admin.isSuperAdmin;
-                                final dateStr = DateFormat('MMM dd, yyyy').format(admin.createdAt);
-
-                                return DataRow(
-                                  cells: [
-                                    // Username / Email
-                                    DataCell(
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 16,
-                                            backgroundColor: isSuperAdminAccount
-                                                ? AppColors.primary.withValues(alpha: 0.2)
-                                                : AppColors.secondarySurface,
-                                            child: Icon(
-                                              isSuperAdminAccount ? Icons.star_rounded : Icons.person_rounded,
-                                              size: 18,
-                                              color: isSuperAdminAccount ? AppColors.primary : AppColors.secondaryText,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Text(
-                                                    admin.username,
-                                                    style: const TextStyle(
-                                                      color: AppColors.primaryText,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                  if (isSuperAdminAccount) ...[
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: AppColors.primary.withValues(alpha: 0.15),
-                                                        borderRadius: BorderRadius.circular(4),
-                                                      ),
-                                                      child: const Text(
-                                                        'SUPERADMIN',
-                                                        style: TextStyle(
-                                                          color: AppColors.primary,
-                                                          fontSize: 9,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                               if (admin.email.isNotEmpty) ...[
-                                                 const SizedBox(height: 2),
-                                                 Text(
-                                                   admin.email,
-                                                   style: const TextStyle(
-                                                     color: AppColors.secondaryText,
-                                                     fontSize: 11,
-                                                   ),
-                                                 ),
-                                               ],
-                                             ],
-                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                     // Company Name
-                                     DataCell(
-                                       Text(
-                                         admin.companyName,
-                                         style: const TextStyle(
-                                           color: AppColors.primaryText,
-                                           fontSize: 13,
-                                           fontWeight: FontWeight.w500,
-                                         ),
-                                       ),
-                                     ),
-                                     // Contact Phone
-                                     DataCell(
-                                       Text(
-                                         admin.phone,
-                                         style: const TextStyle(
-                                           color: AppColors.secondaryText,
-                                           fontSize: 13,
-                                         ),
-                                       ),
-                                     ),
-                                    // Status Badge
-                                    DataCell(
-                                      StatusBadge(status: admin.status.toUpperCase()),
-                                    ),
-                                    // Joined Date
-                                    DataCell(
-                                      Text(
-                                        dateStr,
-                                        style: const TextStyle(
-                                          color: AppColors.secondaryText,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    // Actions: Approve (✓), Suspend (⏸), Delete (🗑️)
-                                    DataCell(
-                                      isSuperAdminAccount
-                                          ? const Text(
-                                              'System Superadmin',
-                                              style: TextStyle(
-                                                color: AppColors.secondaryText,
-                                                fontSize: 11,
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                            )
-                                          : Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                // Approve Button (✓)
-                                                IconButton(
-                                                  tooltip: 'Approve (✓)',
-                                                  icon: Icon(
-                                                    Icons.check_circle_rounded,
-                                                    color: admin.isApproved
-                                                        ? AppColors.secondaryText.withValues(alpha: 0.3)
-                                                        : AppColors.success,
-                                                    size: 22,
-                                                  ),
-                                                  onPressed: admin.isApproved
-                                                      ? null
-                                                      : () async {
-                                                          final messenger = ScaffoldMessenger.of(context);
-                                                          final ok = await notifier.approveAdmin(admin.id);
-                                                          if (mounted && ok) {
-                                                            messenger.showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                    'Admin "${admin.username}" status set to APPROVED.'),
-                                                                backgroundColor: AppColors.success,
-                                                              ),
-                                                            );
-                                                          }
-                                                        },
-                                                ),
-                                                // Suspend Button (⏸)
-                                                IconButton(
-                                                  tooltip: 'Suspend (⏸)',
-                                                  icon: Icon(
-                                                    Icons.pause_circle_rounded,
-                                                    color: admin.isSuspended
-                                                        ? AppColors.secondaryText.withValues(alpha: 0.3)
-                                                        : AppColors.warning,
-                                                    size: 22,
-                                                  ),
-                                                  onPressed: admin.isSuspended
-                                                      ? null
-                                                      : () async {
-                                                          final messenger = ScaffoldMessenger.of(context);
-                                                          final ok = await notifier.suspendAdmin(admin.id);
-                                                          if (mounted && ok) {
-                                                            messenger.showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                    'Admin "${admin.username}" status set to SUSPENDED.'),
-                                                                backgroundColor: AppColors.warning,
-                                                              ),
-                                                            );
-                                                          }
-                                                        },
-                                                ),
-                                                // Delete Button (🗑️)
-                                                IconButton(
-                                                  tooltip: 'Delete (🗑️)',
-                                                  icon: const Icon(
-                                                    Icons.delete_outline_rounded,
-                                                    color: AppColors.danger,
-                                                    size: 22,
-                                                  ),
-                                                  onPressed: () => _confirmDelete(context, admin),
-                                                ),
-                                              ],
-                                            ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                  ),
+                  // FULL-WIDTH RESPONSIVE TENANT ADMIN DIRECTORY TABLE CARD
+                  _buildTenantTableCard(state.filteredAdmins),
                 ],
               ),
             ),
@@ -611,80 +222,441 @@ class _SuperadminDashboardPageState extends ConsumerState<SuperadminDashboardPag
     );
   }
 
-  Widget _buildStatCard({
-    required double width,
+  // SLIM COMPACT KPI STAT CARD (height ~72px)
+  Widget _buildCompactStatCard({
     required String title,
-    required int count,
+    required String count,
     required IconData icon,
-    required Color iconColor,
-    required bool isSelected,
-    required VoidCallback onTap,
+    required Color color,
+    bool isSelected = false,
+    VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: width,
-        padding: const EdgeInsets.all(20),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 72,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFF131E2E),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? iconColor : AppColors.border,
+            color: isSelected ? color : const Color(0xFF1F2E45),
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected ? iconColor.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  child: Icon(icon, color: iconColor, size: 22),
-                ),
-                const Spacer(),
-                if (isSelected)
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle),
+                  const SizedBox(height: 4),
+                  Text(
+                    count,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '$count',
-              style: const TextStyle(
-                color: AppColors.primaryText,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.secondaryText,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Icon(icon, color: color, size: 20),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatsRow(
+    List<AdminProfileModel> admins, {
+    required String filterStatus,
+    required Function(String) onSelectFilter,
+  }) {
+    final tenantAdmins = admins.where((a) => !a.isSuperAdmin).toList();
+    final totalWorkspaces = tenantAdmins.length;
+    final pending = tenantAdmins.where((a) => a.status == 'pending').length;
+    final active = tenantAdmins.where((a) => a.status == 'approved').length;
+    final suspended = tenantAdmins.where((a) => a.status == 'suspended').length;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 700) {
+          final cardWidth = (constraints.maxWidth - 12) / 2;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(
+                width: cardWidth,
+                child: _buildCompactStatCard(
+                  title: 'Total Workspaces',
+                  count: '$totalWorkspaces',
+                  icon: Icons.business,
+                  color: const Color(0xFF38BDF8),
+                  isSelected: filterStatus == 'all',
+                  onTap: () => onSelectFilter('all'),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _buildCompactStatCard(
+                  title: 'Pending Approvals',
+                  count: '$pending',
+                  icon: Icons.pending_actions,
+                  color: const Color(0xFFFBBF24),
+                  isSelected: filterStatus == 'pending',
+                  onTap: () => onSelectFilter('pending'),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _buildCompactStatCard(
+                  title: 'Active / Approved',
+                  count: '$active',
+                  icon: Icons.check_circle_outline,
+                  color: const Color(0xFF34D399),
+                  isSelected: filterStatus == 'approved',
+                  onTap: () => onSelectFilter('approved'),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _buildCompactStatCard(
+                  title: 'Suspended',
+                  count: '$suspended',
+                  icon: Icons.pause_circle_outline,
+                  color: const Color(0xFFF87171),
+                  isSelected: filterStatus == 'suspended',
+                  onTap: () => onSelectFilter('suspended'),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildCompactStatCard(
+                title: 'Total Workspaces',
+                count: '$totalWorkspaces',
+                icon: Icons.business,
+                color: const Color(0xFF38BDF8),
+                isSelected: filterStatus == 'all',
+                onTap: () => onSelectFilter('all'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactStatCard(
+                title: 'Pending Approvals',
+                count: '$pending',
+                icon: Icons.pending_actions,
+                color: const Color(0xFFFBBF24),
+                isSelected: filterStatus == 'pending',
+                onTap: () => onSelectFilter('pending'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactStatCard(
+                title: 'Active / Approved',
+                count: '$active',
+                icon: Icons.check_circle_outline,
+                color: const Color(0xFF34D399),
+                isSelected: filterStatus == 'approved',
+                onTap: () => onSelectFilter('approved'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactStatCard(
+                title: 'Suspended',
+                count: '$suspended',
+                icon: Icons.pause_circle_outline,
+                color: const Color(0xFFF87171),
+                isSelected: filterStatus == 'suspended',
+                onTap: () => onSelectFilter('suspended'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTenantTableCard(List<AdminProfileModel> admins) {
+    final notifier = ref.read(superadminProvider.notifier);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF131E2E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1F2E45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Table Header + Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Tenant Admin Directory',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(
+                  width: 280,
+                  height: 38,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) => notifier.setSearchQuery(val),
+                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search username, company, email...',
+                      hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                      filled: true,
+                      fillColor: const Color(0xFF0F172A),
+                      contentPadding: EdgeInsets.zero,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF1F2E45)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF1F2E45)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFF1F2E45)),
+
+          // Table Content
+          admins.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(40.0),
+                  child: Center(
+                    child: Text('No tenant admins found.', style: TextStyle(color: Color(0xFF94A3B8))),
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minWidth: constraints.maxWidth < 900 ? 900 : constraints.maxWidth),
+                        child: DataTable(
+                          horizontalMargin: 20,
+                          columnSpacing: 28,
+                          headingRowColor: WidgetStateProperty.all(const Color(0xFF0B132B)),
+                          columns: const [
+                            DataColumn(label: Text('Username / Email', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Company Name', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Contact Phone', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Status', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Joined Date', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600))),
+                            DataColumn(label: Text('Actions', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600))),
+                          ],
+                          rows: admins.map((admin) => _buildAdminDataRow(admin)).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
+    );
+  }
+
+  DataRow _buildAdminDataRow(AdminProfileModel admin) {
+    final dateStr = DateFormat('MMM dd, yyyy').format(admin.createdAt);
+    final notifier = ref.read(superadminProvider.notifier);
+
+    return DataRow(
+      cells: [
+        // Username / Email
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.secondarySurface,
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 18,
+                  color: AppColors.secondaryText,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    admin.username,
+                    style: const TextStyle(
+                      color: AppColors.primaryText,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (admin.email.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      admin.email,
+                      style: const TextStyle(
+                        color: AppColors.secondaryText,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Company Name
+        DataCell(
+          Text(
+            admin.companyName,
+            style: const TextStyle(
+              color: AppColors.primaryText,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        // Contact Phone
+        DataCell(
+          Text(
+            admin.phone,
+            style: const TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        // Status Badge
+        DataCell(
+          StatusBadge(status: admin.status.toUpperCase()),
+        ),
+        // Joined Date
+        DataCell(
+          Text(
+            dateStr,
+            style: const TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        // Actions: Approve (✓), Suspend (⏸), Delete (🗑️)
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Approve Button (✓)
+              IconButton(
+                tooltip: 'Approve (✓)',
+                icon: Icon(
+                  Icons.check_circle_rounded,
+                  color: admin.isApproved
+                      ? AppColors.secondaryText.withValues(alpha: 0.3)
+                      : AppColors.success,
+                  size: 22,
+                ),
+                onPressed: admin.isApproved
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final ok = await notifier.approveAdmin(admin.id);
+                        if (mounted && ok) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Admin "${admin.username}" status set to APPROVED.'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      },
+              ),
+              // Suspend Button (⏸)
+              IconButton(
+                tooltip: 'Suspend (⏸)',
+                icon: Icon(
+                  Icons.pause_circle_rounded,
+                  color: admin.isSuspended
+                      ? AppColors.secondaryText.withValues(alpha: 0.3)
+                      : AppColors.warning,
+                  size: 22,
+                ),
+                onPressed: admin.isSuspended
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final ok = await notifier.suspendAdmin(admin.id);
+                        if (mounted && ok) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Admin "${admin.username}" status set to SUSPENDED.'),
+                              backgroundColor: AppColors.warning,
+                            ),
+                          );
+                        }
+                      },
+              ),
+              // Delete Button (🗑️)
+              IconButton(
+                tooltip: 'Delete (🗑️)',
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.danger,
+                  size: 22,
+                ),
+                onPressed: () => _confirmDelete(context, admin),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

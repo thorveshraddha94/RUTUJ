@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/data/auth_repository.dart';
+import '../../features/auth/domain/admin_model.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/dashboard/presentation/admin_shell.dart';
@@ -30,60 +31,69 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final path = state.uri.path;
       final fullUri = state.uri.toString();
-      final matched = state.matchedLocation;
-      final fragment = state.uri.fragment;
-      final browserUrl = Uri.base.toString();
 
-      // IF ACCESSING ANY DRIVER TRIP ROUTE -> NEVER REDIRECT
-      if (path.contains('/trip') ||
-          matched.contains('/trip') ||
-          fullUri.contains('/trip') ||
-          fragment.contains('/trip') ||
-          browserUrl.contains('/trip')) {
-        return null; // Do NOT redirect to login
+      // 1. Always allow public driver trip pages without any auth check
+      if (path.contains('/trip') || fullUri.contains('/trip')) {
+        return null;
+      }
+
+      if (authState.isLoading) {
+        return null;
       }
 
       final currentUser = Supabase.instance.client.auth.currentUser;
       final hasSession = currentUser != null;
-      final isLoggedIn = (authState.isAuthenticated && (authState.user?.isAdmin ?? false)) || hasSession;
-      final isLoggingIn = path == '/login' || path == '/admin/login' || path == '/register';
+      final isLoggedIn =
+          (authState.isAuthenticated && authState.user != null) || hasSession;
+      final isLoginRoute =
+          path == '/login' || path == '/admin/login' || path == '/register';
+      final isPendingRoute = path == '/pending-approval';
 
+      // 2. Not logged in -> Redirect to login page
       if (!isLoggedIn) {
-        if (!isLoggingIn) {
-          return '/login';
-        }
-        return null;
+        return isLoginRoute ? null : '/login';
       }
 
-      // User is logged in: Check role & status
-      final userEmail = (currentUser?.email ?? authState.user?.email ?? '').trim().toLowerCase();
-      final role = (tenantState.currentProfile?.role ?? (authState.user?.isSuperAdmin ?? false ? 'superadmin' : 'admin')).toLowerCase();
-      final isSuperAdmin = userEmail == 'parthgajjar.bk@gmail.com' || role == 'superadmin' || (authState.user?.isSuperAdmin ?? false);
+      // 3. Check for Superadmin role
+      final email = (currentUser?.email ?? authState.user?.email ?? '')
+          .trim()
+          .toLowerCase();
+      final isSuperAdmin =
+          email == 'parthgajjar.bk@gmail.com' ||
+          authState.role == UserRole.superadmin ||
+          (authState.user?.isSuperAdmin ?? false) ||
+          (tenantState.currentProfile?.isSuperAdmin ?? false);
 
       if (isSuperAdmin) {
-        if (path != '/superadmin/dashboard') {
+        if (isLoginRoute || !path.startsWith('/superadmin')) {
           return '/superadmin/dashboard';
         }
         return null;
       }
 
-      // Regular Admin Role
-      final profileStatus = tenantState.currentProfile?.status.toLowerCase();
-      final status = profileStatus ??
-          ((userEmail == 'admin@airporttransfer.com' || userEmail == 'admin') ? 'approved' : 'pending');
+      // 4. Regular Tenant Admin Status Check
+      final profile = tenantState.currentProfile;
+      bool isPending = false;
+      bool isSuspended = false;
 
-      if (status == 'pending' || status == 'suspended') {
-        if (path != '/pending-approval') {
-          return '/pending-approval';
-        }
-        return null;
+      if (profile != null) {
+        isPending = profile.isPending;
+        isSuspended = profile.isSuspended;
+      } else {
+        isPending = authState.status == UserStatus.pending;
+        isSuspended = authState.status == UserStatus.suspended;
       }
 
-      if (status == 'approved') {
-        if (isLoggingIn || path == '/pending-approval' || path == '/superadmin/dashboard') {
-          return '/admin/dashboard';
-        }
-        return null;
+      if (isPending || isSuspended) {
+        return isPendingRoute ? null : '/pending-approval';
+      }
+
+      // Approved Tenant Admin
+      if (isLoginRoute ||
+          isPendingRoute ||
+          path == '/' ||
+          path == '/superadmin/dashboard') {
+        return '/admin/dashboard';
       }
 
       return null;
@@ -101,7 +111,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/trip/:token',
         name: 'driver-trip',
         builder: (context, state) {
-          final token = state.pathParameters['token'] ?? state.uri.queryParameters['token'] ?? '';
+          final token =
+              state.pathParameters['token'] ??
+              state.uri.queryParameters['token'] ??
+              '';
           return DriverTripPage(token: token);
         },
       ),
@@ -112,10 +125,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return DriverTripPage(token: token);
         },
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginPage(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterPage(),
@@ -175,4 +185,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
