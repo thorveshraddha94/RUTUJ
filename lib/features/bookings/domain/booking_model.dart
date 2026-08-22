@@ -53,6 +53,11 @@ class BookingModel {
   final String? specialAssistance;
   final String? guestNotes;
 
+  // Booked By / Coordinator Details
+  final String? bookedByName;
+  final String? bookedByPhone;
+  final String? wbsNo;
+
   // Compatibility getters for legacy callers
   String get clientName => guestName;
   String get clientContact => guestMobile;
@@ -144,6 +149,9 @@ class BookingModel {
     this.isVip = false,
     this.specialAssistance,
     this.guestNotes,
+    this.bookedByName,
+    this.bookedByPhone,
+    this.wbsNo,
     required this.flightNumber,
     required this.flightType,
     required this.airport,
@@ -197,6 +205,9 @@ class BookingModel {
     bool? isVip,
     String? specialAssistance,
     String? guestNotes,
+    String? bookedByName,
+    String? bookedByPhone,
+    String? wbsNo,
     String? flightNumber,
     String? flightType,
     String? airport,
@@ -240,6 +251,9 @@ class BookingModel {
       isVip: isVip ?? this.isVip,
       specialAssistance: specialAssistance ?? this.specialAssistance,
       guestNotes: guestNotes ?? this.guestNotes,
+      bookedByName: bookedByName ?? this.bookedByName,
+      bookedByPhone: bookedByPhone ?? this.bookedByPhone,
+      wbsNo: wbsNo ?? this.wbsNo,
       flightNumber: flightNumber ?? this.flightNumber,
       flightType: flightType ?? this.flightType,
       airport: airport ?? this.airport,
@@ -286,6 +300,9 @@ class BookingModel {
       isVip: json['isVip'] as bool? ?? false,
       specialAssistance: json['specialAssistance'] as String?,
       guestNotes: json['guestNotes'] as String?,
+      bookedByName: json['bookedByName'] as String? ?? json['booked_by_name'] as String?,
+      bookedByPhone: json['bookedByPhone'] as String? ?? json['booked_by_phone'] as String?,
+      wbsNo: json['wbsNo'] as String? ?? json['wbs_no'] as String?,
       flightNumber: json['flightNumber'] as String? ?? '',
       flightType: json['flightType'] as String? ?? 'Arrival',
       airport: json['airport'] as String? ?? '',
@@ -334,6 +351,9 @@ class BookingModel {
         'isVip': isVip,
         'specialAssistance': specialAssistance,
         'guestNotes': guestNotes,
+        'bookedByName': bookedByName,
+        'bookedByPhone': bookedByPhone,
+        'wbsNo': wbsNo,
         'flightNumber': flightNumber,
         'flightType': flightType,
         'airport': airport,
@@ -394,6 +414,9 @@ class BookingModel {
       isVip: json['is_vip'] as bool? ?? json['isVip'] as bool? ?? false,
       specialAssistance: json['special_assistance'] as String? ?? json['specialAssistance'] as String?,
       guestNotes: json['guest_notes'] as String? ?? json['guestNotes'] as String?,
+      bookedByName: json['booked_by_name']?.toString() ?? json['booked_by']?.toString() ?? json['bookedByName']?.toString() ?? json['coordinator_name']?.toString(),
+      bookedByPhone: json['booked_by_phone']?.toString() ?? json['bookedByPhone']?.toString() ?? json['coordinator_phone']?.toString(),
+      wbsNo: json['wbs_no']?.toString() ?? json['wbsNo']?.toString() ?? json['wbs_number']?.toString(),
       flightNumber: (json['flight_number'] ?? json['flightNumber'] ?? '').toString(),
       flightType: (json['flight_type'] ?? json['flightType'] ?? 'Arrival').toString(),
       airport: (json['airport'] ?? '').toString(),
@@ -453,6 +476,9 @@ class BookingModel {
         'is_vip': isVip,
         if (specialAssistance != null) 'special_assistance': specialAssistance,
         if (guestNotes != null) 'guest_notes': guestNotes,
+        if (bookedByName != null) 'booked_by_name': bookedByName,
+        if (bookedByPhone != null) 'booked_by_phone': bookedByPhone,
+        if (wbsNo != null) 'wbs_no': wbsNo,
         'flight_number': flightNumber,
         'flight_type': flightType,
         'airport': airport,

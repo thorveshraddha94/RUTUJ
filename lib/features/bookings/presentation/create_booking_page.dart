@@ -23,7 +23,12 @@ class CreateBookingPage extends ConsumerStatefulWidget {
 class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Section 1: Passenger Information
+  // Section 1: Booked By
+  final _bookedByNameController = TextEditingController();
+  final _bookedByPhoneController = TextEditingController();
+  final _wbsNoController = TextEditingController();
+
+  // Section 2: Passenger Information
   final _guestNameController = TextEditingController();
   final _guestMobileController = TextEditingController();
   final _guestEmailController = TextEditingController();
@@ -42,13 +47,12 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _destinationAddressController = TextEditingController();
   final _dropNotesController = TextEditingController();
 
-  // Section 3: Schedule & Pricing
+  // Section 3: Schedule
   String _tripType = 'single_day'; // 'single_day' or 'multi_day'
   DateTime _pickupDate = DateTime.now();
   DateTime _endDate = DateTime.now();
   int _durationDays = 1;
   TimeOfDay _pickupTime = const TimeOfDay(hour: 10, minute: 0);
-  final _totalFareController = TextEditingController();
 
   // Section 4: Driver & Vehicle Selection
   DriverModel? _selectedDriver;
@@ -85,6 +89,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
 
   @override
   void dispose() {
+    _bookedByNameController.dispose();
+    _bookedByPhoneController.dispose();
+    _wbsNoController.dispose();
     _clientRefController.dispose();
     _internalNotesController.dispose();
     _guestNameController.dispose();
@@ -97,7 +104,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     _destinationController.dispose();
     _destinationAddressController.dispose();
     _dropNotesController.dispose();
-    _totalFareController.dispose();
     super.dispose();
   }
 
@@ -134,9 +140,12 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       );
       final pickupDateStr = DateFormat('yyyy-MM-dd').format(_pickupDate);
       final pickupTimeStr = _pickupTime.format(context);
-      final totalFare = double.tryParse(_totalFareController.text.trim()) ?? 0.0;
+      const totalFare = 0.0;
 
       final payload = <String, dynamic>{
+        'booked_by_name': _bookedByNameController.text.trim(),
+        'booked_by_phone': _bookedByPhoneController.text.trim(),
+        'wbs_no': _wbsNoController.text.trim(),
         'passenger_name': _guestNameController.text.trim(),
         'customer_name': _guestNameController.text.trim(),
         'passenger_phone': _guestMobileController.text.trim(),
@@ -183,6 +192,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           final createdBooking = BookingModel(
             id: newBookingId,
             referenceCode: newBookingId.length >= 6 ? 'BK-${newBookingId.substring(0, 6).toUpperCase()}' : 'BK-TRIP',
+            bookedByName: _bookedByNameController.text.trim(),
+            bookedByPhone: _bookedByPhoneController.text.trim(),
+            wbsNo: _wbsNoController.text.trim(),
             guestName: _guestNameController.text.trim(),
             guestMobile: _guestMobileController.text.trim(),
             guestEmail: _guestEmailController.text.trim(),
@@ -265,9 +277,12 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // SECTION 1: Passenger Information
+              // SECTION 1: Booked By
+              _buildBookedBySection(),
+
+              // SECTION 2: Passenger Information
               _buildSectionCard(
-                sectionNumber: '1',
+                sectionNumber: '2',
                 title: 'Passenger Information',
                 icon: Icons.person_outline,
                 child: Column(
@@ -383,9 +398,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 2: Trip Route
+              // SECTION 3: Trip Route
               _buildSectionCard(
-                sectionNumber: '2',
+                sectionNumber: '3',
                 title: 'Trip Route',
                 icon: Icons.pin_drop_outlined,
                 child: Column(
@@ -432,10 +447,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 3: Schedule & Pricing
+              // SECTION 4: Trip Schedule
               _buildSectionCard(
-                sectionNumber: '3',
-                title: 'Schedule & Pricing',
+                sectionNumber: '4',
+                title: 'Trip Schedule',
                 icon: Icons.calendar_month_outlined,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -510,17 +525,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                                 final picked = await showTimePicker(context: context, initialTime: _pickupTime);
                                 if (picked != null) setState(() => _pickupTime = picked);
                               },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _totalFareController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                labelText: 'Total Fare / Amount (\$)',
-                                prefixText: '\$ ',
-                              ),
                             ),
                           ),
                         ],
@@ -613,17 +617,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _totalFareController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                labelText: 'Total Package Fare (\$)',
-                                prefixText: '\$ ',
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ],
@@ -632,9 +625,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 4: Driver & Vehicle Assignment
+              // SECTION 5: Driver & Vehicle Assignment
               _buildSectionCard(
-                sectionNumber: '4',
+                sectionNumber: '5',
                 title: 'Driver & Vehicle Assignment',
                 icon: Icons.badge_outlined,
                 child: Column(
@@ -671,9 +664,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               ),
               const SizedBox(height: 24),
 
-              // SECTION 5: Reminder & Notification Setup
+              // SECTION 6: Reminder & Notification Setup
               _buildSectionCard(
-                sectionNumber: '5',
+                sectionNumber: '6',
                 title: 'Reminder & Notification Setup',
                 icon: Icons.notifications_active_outlined,
                 child: Column(
@@ -1181,6 +1174,101 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBookedBySection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1F2E45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.assignment_ind_outlined, color: Color(0xFF38BDF8), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Booked By Details',
+                style: TextStyle(
+                  color: Color(0xFF38BDF8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              // 1. Name
+              Expanded(
+                flex: 4,
+                child: TextFormField(
+                  controller: _bookedByNameController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: _inputDecoration(
+                    label: 'Booked By Name',
+                    hint: 'e.g. Travel Desk / John Doe',
+                    icon: Icons.person_outline,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // 2. Mobile Number
+              Expanded(
+                flex: 4,
+                child: TextFormField(
+                  controller: _bookedByPhoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: _inputDecoration(
+                    label: 'Booked By Mobile',
+                    hint: 'e.g. 9876543210',
+                    icon: Icons.phone_outlined,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // 3. WBS No.
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: _wbsNoController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: _inputDecoration(
+                    label: 'WBS No.',
+                    hint: 'e.g. WBS-90210',
+                    icon: Icons.tag_outlined,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({required String label, required String hint, required IconData icon}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+      hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+      prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
+      filled: true,
+      fillColor: const Color(0xFF131E2E),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
     );
   }
 }

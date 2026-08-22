@@ -17,6 +17,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
   final _formKey = GlobalKey<FormState>();
   final _supabase = Supabase.instance.client;
 
+  late TextEditingController _bookedByNameController;
+  late TextEditingController _bookedByPhoneController;
+  late TextEditingController _wbsNoController;
   late TextEditingController _passengerNameController;
   late TextEditingController _passengerPhoneController;
   late TextEditingController _pickupController;
@@ -84,6 +87,16 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
         .toLowerCase()
         .trim();
 
+    final bookedByName =
+        _getField(b, ['booked_by_name', 'bookedByName', 'coordinator_name']) ?? '';
+    final bookedByPhone =
+        _getField(b, ['booked_by_phone', 'bookedByPhone', 'coordinator_phone']) ?? '';
+    final wbsNo =
+        _getField(b, ['wbs_no', 'wbsNo', 'wbs_number']) ?? '';
+
+    _bookedByNameController = TextEditingController(text: bookedByName);
+    _bookedByPhoneController = TextEditingController(text: bookedByPhone);
+    _wbsNoController = TextEditingController(text: wbsNo);
     _passengerNameController = TextEditingController(text: name);
     _passengerPhoneController = TextEditingController(text: phone);
     _pickupController = TextEditingController(text: pickup);
@@ -145,6 +158,12 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       } catch (_) {}
     }
     try {
+      if (obj.bookedByName != null && keys.contains('bookedByName'))
+        return obj.bookedByName;
+      if (obj.bookedByPhone != null && keys.contains('bookedByPhone'))
+        return obj.bookedByPhone;
+      if (obj.wbsNo != null && keys.contains('wbsNo'))
+        return obj.wbsNo;
       if (obj.guestName != null && keys.contains('passengerName'))
         return obj.guestName;
       if (obj.guestMobile != null && keys.contains('passengerPhone'))
@@ -171,6 +190,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
   @override
   void dispose() {
+    _bookedByNameController.dispose();
+    _bookedByPhoneController.dispose();
+    _wbsNoController.dispose();
     _passengerNameController.dispose();
     _passengerPhoneController.dispose();
     _pickupController.dispose();
@@ -285,6 +307,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       final bookingId = _getField(widget.booking, ['id']) ?? widget.booking.id;
 
       final updates = <String, dynamic>{
+        'booked_by_name': _bookedByNameController.text.trim(),
+        'booked_by_phone': _bookedByPhoneController.text.trim(),
+        'wbs_no': _wbsNoController.text.trim(),
         'passenger_name': _passengerNameController.text.trim(),
         'customer_name': _passengerNameController.text.trim(),
         'passenger_phone': _passengerPhoneController.text.trim(),
@@ -426,9 +451,12 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 1. Passenger Details
+                            // 1. Booked By Details
+                            _buildBookedBySection(),
+
+                            // 2. Passenger Details
                             const Text(
-                              '1. Passenger Information',
+                              '2. Passenger Information',
                               style: TextStyle(
                                 color: Color(0xFF38BDF8),
                                 fontSize: 13,
@@ -457,9 +485,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                             ),
                             const SizedBox(height: 16),
 
-                            // 2. Route
+                            // 3. Route
                             const Text(
-                              '2. Trip Route Details',
+                              '3. Trip Route Details',
                               style: TextStyle(
                                 color: Color(0xFF38BDF8),
                                 fontSize: 13,
@@ -480,9 +508,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                             ),
                             const SizedBox(height: 16),
 
-                            // 3. Schedule & Fare
+                            // 4. Schedule & Fare
                             const Text(
-                              '3. Schedule & Fare',
+                              '4. Schedule & Fare',
                               style: TextStyle(
                                 color: Color(0xFF38BDF8),
                                 fontSize: 13,
@@ -529,9 +557,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                             ),
                             const SizedBox(height: 16),
 
-                            // 4. Driver & Vehicle
+                            // 5. Driver & Vehicle
                             const Text(
-                              '4. Fleet Assignment & Status',
+                              '5. Fleet Assignment & Status',
                               style: TextStyle(
                                 color: Color(0xFF38BDF8),
                                 fontSize: 13,
@@ -843,6 +871,101 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       validator: required
           ? (val) => val == null || val.trim().isEmpty ? 'Required' : null
           : null,
+    );
+  }
+
+  Widget _buildBookedBySection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1F2E45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.assignment_ind_outlined, color: Color(0xFF38BDF8), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Booked By Details',
+                style: TextStyle(
+                  color: Color(0xFF38BDF8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              // 1. Name
+              Expanded(
+                flex: 4,
+                child: TextFormField(
+                  controller: _bookedByNameController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: _inputDecoration(
+                    label: 'Booked By Name',
+                    hint: 'e.g. Travel Desk / John Doe',
+                    icon: Icons.person_outline,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // 2. Mobile Number
+              Expanded(
+                flex: 4,
+                child: TextFormField(
+                  controller: _bookedByPhoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: _inputDecoration(
+                    label: 'Booked By Mobile',
+                    hint: 'e.g. 9876543210',
+                    icon: Icons.phone_outlined,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // 3. WBS No.
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: _wbsNoController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: _inputDecoration(
+                    label: 'WBS No.',
+                    hint: 'e.g. WBS-90210',
+                    icon: Icons.tag_outlined,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({required String label, required String hint, required IconData icon}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+      hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+      prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
+      filled: true,
+      fillColor: const Color(0xFF131E2E),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
     );
   }
 }
