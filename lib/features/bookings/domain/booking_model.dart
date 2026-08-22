@@ -58,6 +58,9 @@ class BookingModel {
   final String? bookedByPhone;
   final String? wbsNo;
 
+  // Multi-passenger details array
+  final List<Map<String, dynamic>>? passengers;
+
   // Compatibility getters for legacy callers
   String get clientName => guestName;
   String get clientContact => guestMobile;
@@ -152,6 +155,7 @@ class BookingModel {
     this.bookedByName,
     this.bookedByPhone,
     this.wbsNo,
+    this.passengers,
     required this.flightNumber,
     required this.flightType,
     required this.airport,
@@ -208,6 +212,7 @@ class BookingModel {
     String? bookedByName,
     String? bookedByPhone,
     String? wbsNo,
+    List<Map<String, dynamic>>? passengers,
     String? flightNumber,
     String? flightType,
     String? airport,
@@ -254,6 +259,7 @@ class BookingModel {
       bookedByName: bookedByName ?? this.bookedByName,
       bookedByPhone: bookedByPhone ?? this.bookedByPhone,
       wbsNo: wbsNo ?? this.wbsNo,
+      passengers: passengers ?? this.passengers,
       flightNumber: flightNumber ?? this.flightNumber,
       flightType: flightType ?? this.flightType,
       airport: airport ?? this.airport,
@@ -303,6 +309,9 @@ class BookingModel {
       bookedByName: json['bookedByName'] as String? ?? json['booked_by_name'] as String?,
       bookedByPhone: json['bookedByPhone'] as String? ?? json['booked_by_phone'] as String?,
       wbsNo: json['wbsNo'] as String? ?? json['wbs_no'] as String?,
+      passengers: (json['passengers'] as List<dynamic>?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
       flightNumber: json['flightNumber'] as String? ?? '',
       flightType: json['flightType'] as String? ?? 'Arrival',
       airport: json['airport'] as String? ?? '',
@@ -354,6 +363,7 @@ class BookingModel {
         'bookedByName': bookedByName,
         'bookedByPhone': bookedByPhone,
         'wbsNo': wbsNo,
+        'passengers': passengers,
         'flightNumber': flightNumber,
         'flightType': flightType,
         'airport': airport,
@@ -417,6 +427,9 @@ class BookingModel {
       bookedByName: json['booked_by_name']?.toString() ?? json['booked_by']?.toString() ?? json['bookedByName']?.toString() ?? json['coordinator_name']?.toString(),
       bookedByPhone: json['booked_by_phone']?.toString() ?? json['bookedByPhone']?.toString() ?? json['coordinator_phone']?.toString(),
       wbsNo: json['wbs_no']?.toString() ?? json['wbsNo']?.toString() ?? json['wbs_number']?.toString(),
+      passengers: (json['passengers'] as List<dynamic>?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
       flightNumber: (json['flight_number'] ?? json['flightNumber'] ?? '').toString(),
       flightType: (json['flight_type'] ?? json['flightType'] ?? 'Arrival').toString(),
       airport: (json['airport'] ?? '').toString(),
@@ -479,6 +492,7 @@ class BookingModel {
         if (bookedByName != null) 'booked_by_name': bookedByName,
         if (bookedByPhone != null) 'booked_by_phone': bookedByPhone,
         if (wbsNo != null) 'wbs_no': wbsNo,
+        if (passengers != null) 'passengers': passengers,
         'flight_number': flightNumber,
         'flight_type': flightType,
         'airport': airport,

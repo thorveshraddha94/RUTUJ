@@ -9,9 +9,10 @@ import '../../drivers/data/driver_repository.dart';
 import '../../drivers/domain/driver_model.dart';
 import '../../vehicles/domain/vehicle_model.dart';
 import '../../../core/services/whatsapp_service.dart';
-import '../../tenant/data/tenant_provider.dart';
 import '../data/booking_repository.dart';
 import '../domain/booking_model.dart';
+import '../domain/passenger_form_item.dart';
+import '../../../core/widgets/responsive_layout.dart';
 
 class CreateBookingPage extends ConsumerStatefulWidget {
   const CreateBookingPage({super.key});
@@ -28,7 +29,26 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   final _bookedByPhoneController = TextEditingController();
   final _wbsNoController = TextEditingController();
 
-  // Section 2: Passenger Information
+  // Section 2: Dynamic Passenger & Route List
+  int _passengerCount = 1;
+  List<PassengerFormItem> _passengerList = [PassengerFormItem()];
+
+  void _updatePassengerCount(int count) {
+    if (count == _passengerCount) return;
+    setState(() {
+      _passengerCount = count;
+      while (_passengerList.length < count) {
+        final defaultPickup = _passengerList.isNotEmpty ? _passengerList[0].pickupController.text : '';
+        final defaultDropoff = _passengerList.isNotEmpty ? _passengerList[0].dropoffController.text : '';
+        _passengerList.add(PassengerFormItem(pickup: defaultPickup, dropoff: defaultDropoff));
+      }
+      while (_passengerList.length > count) {
+        final item = _passengerList.removeLast();
+        item.dispose();
+      }
+    });
+  }
+
   final _guestNameController = TextEditingController();
   final _guestMobileController = TextEditingController();
   final _guestEmailController = TextEditingController();
@@ -89,6 +109,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
 
   @override
   void dispose() {
+    for (final item in _passengerList) {
+      item.dispose();
+    }
     _bookedByNameController.dispose();
     _bookedByPhoneController.dispose();
     _wbsNoController.dispose();
@@ -142,23 +165,36 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       final pickupTimeStr = _pickupTime.format(context);
       const totalFare = 0.0;
 
+      final primaryP = _passengerList.isNotEmpty ? _passengerList[0] : PassengerFormItem();
+      final pName = primaryP.nameController.text.trim().isNotEmpty
+          ? primaryP.nameController.text.trim()
+          : _guestNameController.text.trim();
+      final pPhone = primaryP.phoneController.text.trim().isNotEmpty
+          ? primaryP.phoneController.text.trim()
+          : _guestMobileController.text.trim();
+      final pPick = primaryP.pickupController.text.trim().isNotEmpty
+          ? primaryP.pickupController.text.trim()
+          : _pickupLocationController.text.trim();
+      final pDrop = primaryP.dropoffController.text.trim().isNotEmpty
+          ? primaryP.dropoffController.text.trim()
+          : (_destinationController.text.trim().isNotEmpty
+              ? _destinationController.text.trim()
+              : _destinationAddressController.text.trim());
+
       final payload = <String, dynamic>{
         'booked_by_name': _bookedByNameController.text.trim(),
         'booked_by_phone': _bookedByPhoneController.text.trim(),
         'wbs_no': _wbsNoController.text.trim(),
-        'passenger_name': _guestNameController.text.trim(),
-        'customer_name': _guestNameController.text.trim(),
-        'passenger_phone': _guestMobileController.text.trim(),
-        'customer_phone': _guestMobileController.text.trim(),
+        'passenger_name': pName,
+        'customer_name': pName,
+        'passenger_phone': pPhone,
+        'customer_phone': pPhone,
         'guest_email': _guestEmailController.text.trim(),
-        'pickup_location': _pickupLocationController.text.trim(),
-        'dropoff_location': _destinationController.text.trim().isNotEmpty
-            ? _destinationController.text.trim()
-            : _destinationAddressController.text.trim(),
-        'origin': _pickupLocationController.text.trim(),
-        'destination': _destinationController.text.trim().isNotEmpty
-            ? _destinationController.text.trim()
-            : _destinationAddressController.text.trim(),
+        'pickup_location': pPick,
+        'dropoff_location': pDrop,
+        'origin': pPick,
+        'destination': pDrop,
+        'passengers': _passengerList.map((p) => p.toJson()).toList(),
         'trip_type': _tripType,
         'start_date': _pickupDate.toIso8601String().split('T')[0],
         'end_date': _endDate.toIso8601String().split('T')[0],
@@ -177,7 +213,8 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
         'vehicle_type': _selectedVehicle?.type.name.toUpperCase(),
         'notes': _internalNotesController.text.trim(),
         'booking_reference': _clientRefController.text.trim(),
-        'passengers_count': _passengersCount,
+        'passenger_count': _passengerCount,
+        'passengers_count': _passengerCount,
         'luggage_count': _luggageCount,
         'is_vip': _isVip,
         'special_assistance': _specialAssistanceController.text.trim(),
@@ -195,10 +232,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             bookedByName: _bookedByNameController.text.trim(),
             bookedByPhone: _bookedByPhoneController.text.trim(),
             wbsNo: _wbsNoController.text.trim(),
-            guestName: _guestNameController.text.trim(),
-            guestMobile: _guestMobileController.text.trim(),
+            guestName: pName,
+            guestMobile: pPhone,
             guestEmail: _guestEmailController.text.trim(),
-            passengersCount: _passengersCount,
+            passengersCount: _passengerCount,
             luggageCount: _luggageCount,
             flightNumber: '',
             flightType: 'Arrival',
@@ -208,11 +245,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             flightTime: '',
             pickupDate: pickupDateStr,
             pickupTime: pickupTimeStr,
-            pickupLocation: _pickupLocationController.text.trim(),
-            destination: _destinationController.text.trim().isNotEmpty
-                ? _destinationController.text.trim()
-                : _destinationAddressController.text.trim(),
-            destinationAddress: _destinationAddressController.text.trim(),
+            pickupLocation: pPick,
+            destination: pDrop,
+            destinationAddress: pDrop,
+            passengers: _passengerList.map((p) => p.toJson()).toList(),
             vehicleType: '${_selectedVehicle!.make} ${_selectedVehicle!.model}',
             vehicleRegistration: _selectedVehicle!.registrationNumber,
             driverName: _selectedDriver!.name,
@@ -280,33 +316,16 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               // SECTION 1: Booked By
               _buildBookedBySection(),
 
-              // SECTION 2: Passenger Information
+              // SECTION 2: Dynamic Passenger & Route Details
+              _buildDynamicPassengersSection(),
+
+              // SECTION 3: Additional Booking Details
               _buildSectionCard(
-                sectionNumber: '2',
-                title: 'Passenger Information',
-                icon: Icons.person_outline,
+                sectionNumber: '3',
+                title: 'Additional Booking Details',
+                icon: Icons.tune_outlined,
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _guestNameController,
-                            decoration: const InputDecoration(labelText: 'Passenger Name *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _guestMobileController,
-                            decoration: const InputDecoration(labelText: 'Contact Phone *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -317,30 +336,13 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<int>(
-                                  value: _passengersCount,
-                                  decoration: const InputDecoration(labelText: 'Passengers'),
-                                  items: List.generate(10, (i) => i + 1)
-                                      .map((val) => DropdownMenuItem(value: val, child: Text('$val Person(s)')))
-                                      .toList(),
-                                  onChanged: (val) => setState(() => _passengersCount = val!),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: DropdownButtonFormField<int>(
-                                  value: _luggageCount,
-                                  decoration: const InputDecoration(labelText: 'Luggage Count'),
-                                  items: List.generate(10, (i) => i + 1)
-                                      .map((val) => DropdownMenuItem(value: val, child: Text('$val Bags')))
-                                      .toList(),
-                                  onChanged: (val) => setState(() => _luggageCount = val!),
-                                ),
-                              ),
-                            ],
+                          child: DropdownButtonFormField<int>(
+                            value: _luggageCount,
+                            decoration: const InputDecoration(labelText: 'Luggage Count'),
+                            items: List.generate(10, (i) => i + 1)
+                                .map((val) => DropdownMenuItem(value: val, child: Text('$val Bags')))
+                                .toList(),
+                            onChanged: (val) => setState(() => _luggageCount = val!),
                           ),
                         ),
                       ],
@@ -389,37 +391,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                           child: TextFormField(
                             controller: _guestNotesController,
                             decoration: const InputDecoration(labelText: 'Guest Notes'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // SECTION 3: Trip Route
-              _buildSectionCard(
-                sectionNumber: '3',
-                title: 'Trip Route',
-                icon: Icons.pin_drop_outlined,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _pickupLocationController,
-                            decoration: const InputDecoration(labelText: 'Pickup Address *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _destinationController,
-                            decoration: const InputDecoration(labelText: 'Dropoff Address *'),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                           ),
                         ),
                       ],
@@ -1102,78 +1073,196 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             ),
             const SizedBox(height: 24),
 
-            // Action Buttons Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    context.go('/admin/bookings');
-                  },
-                  child: const Text('Go to Bookings List', style: TextStyle(color: Color(0xFF94A3B8))),
-                ),
-                Row(
-                  children: [
-                    // Button 1: Send to Driver
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0284C7),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: const Icon(Icons.badge_outlined, size: 16, color: Colors.white),
-                      label: const Text('Send to Driver', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                      onPressed: () {
-                        WhatsAppService.sendWhatsApp(
-                          booking.driverPhone ?? '',
-                          WhatsAppService.buildDriverMessage(
-                            bookingCode: booking.displayCode,
-                            passengerName: booking.passengerName,
-                            passengerPhone: booking.passengerPhone,
-                            pickupLocation: booking.pickupLocation,
-                            dropoffLocation: booking.dropoffLocation,
-                            pickupTime: booking.pickupTime,
-                            bookingId: booking.id,
-                            tripToken: booking.tripToken,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Button 2: Send to Guest
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: const Icon(Icons.person_outline, size: 16, color: Colors.white),
-                      label: const Text('Send to Guest', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                      onPressed: () {
-                        WhatsAppService.sendWhatsApp(
-                          booking.passengerPhone,
-                          WhatsAppService.buildGuestMessage(
-                            bookingCode: booking.displayCode,
-                            pickupLocation: booking.pickupLocation,
-                            dropoffLocation: booking.dropoffLocation,
-                            pickupTime: booking.pickupTime,
-                            driverName: booking.driverName ?? "Driver",
-                            driverPhone: booking.driverPhone ?? "N/A",
-                            vehicleName: booking.vehicleName,
-                            vehicleNumber: booking.vehicleNumber,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            // Action Buttons Section
+            _buildSuccessDialogActions(context, booking),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSuccessDialogActions(BuildContext context, BookingModel booking) {
+    final isMobile = ResponsiveLayout.isMobile(context);
+    final hasBookedByPhone = (booking.bookedByPhone ?? '').trim().isNotEmpty;
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.badge_outlined, size: 16, color: Colors.white),
+            label: const Text('Send to Driver (WhatsApp)', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              WhatsAppService.sendWhatsApp(
+                booking.driverPhone ?? '',
+                WhatsAppService.buildDriverMessage(
+                  bookingCode: booking.displayCode,
+                  passengerName: booking.passengerName,
+                  passengerPhone: booking.passengerPhone,
+                  pickupLocation: booking.pickupLocation,
+                  dropoffLocation: booking.dropoffLocation,
+                  pickupTime: booking.pickupTime,
+                  bookingId: booking.id,
+                  tripToken: booking.tripToken,
+                  passengers: booking.passengers,
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.person_outline, size: 16, color: Colors.white),
+            label: const Text('Send to Guest (WhatsApp)', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              WhatsAppService.sendWhatsApp(
+                booking.passengerPhone,
+                WhatsAppService.buildGuestMessage(
+                  bookingCode: booking.displayCode,
+                  pickupLocation: booking.pickupLocation,
+                  dropoffLocation: booking.dropoffLocation,
+                  pickupTime: booking.pickupTime,
+                  driverName: booking.driverName ?? "Driver",
+                  driverPhone: booking.driverPhone ?? "N/A",
+                  vehicleName: booking.vehicleName,
+                  vehicleNumber: booking.vehicleNumber,
+                  passengers: booking.passengers,
+                ),
+              );
+            },
+          ),
+          if (hasBookedByPhone) ...[
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.assignment_ind_outlined, size: 16, color: Colors.white),
+              label: const Text('Send to Booked By (WhatsApp)', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                WhatsAppService.sendWhatsApp(
+                  booking.bookedByPhone!,
+                  WhatsAppService.buildBookedByConfirmationMessage(booking),
+                );
+              },
+            ),
+          ],
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go('/admin/bookings');
+            },
+            child: const Text('Go to Bookings List', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+        ],
+      );
+    }
+
+    // Desktop Wrap Layout
+    return Column(
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.end,
+          children: [
+            // 1. Send to Driver
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0284C7),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.badge_outlined, size: 15, color: Colors.white),
+              label: const Text('Send to Driver', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                WhatsAppService.sendWhatsApp(
+                  booking.driverPhone ?? '',
+                  WhatsAppService.buildDriverMessage(
+                    bookingCode: booking.displayCode,
+                    passengerName: booking.passengerName,
+                    passengerPhone: booking.passengerPhone,
+                    pickupLocation: booking.pickupLocation,
+                    dropoffLocation: booking.dropoffLocation,
+                    pickupTime: booking.pickupTime,
+                    bookingId: booking.id,
+                    tripToken: booking.tripToken,
+                    passengers: booking.passengers,
+                  ),
+                );
+              },
+            ),
+
+            // 2. Send to Guest / Passenger
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.person_outline, size: 15, color: Colors.white),
+              label: const Text('Send to Guest', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                WhatsAppService.sendWhatsApp(
+                  booking.passengerPhone,
+                  WhatsAppService.buildGuestMessage(
+                    bookingCode: booking.displayCode,
+                    pickupLocation: booking.pickupLocation,
+                    dropoffLocation: booking.dropoffLocation,
+                    pickupTime: booking.pickupTime,
+                    driverName: booking.driverName ?? "Driver",
+                    driverPhone: booking.driverPhone ?? "N/A",
+                    vehicleName: booking.vehicleName,
+                    vehicleNumber: booking.vehicleNumber,
+                    passengers: booking.passengers,
+                  ),
+                );
+              },
+            ),
+
+            // 3. Send to Booked By Coordinator (if phone provided)
+            if (hasBookedByPhone)
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8B5CF6), // Purple
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.assignment_ind_outlined, size: 15, color: Colors.white),
+                label: const Text('Send to Booked By', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  WhatsAppService.sendWhatsApp(
+                    booking.bookedByPhone!,
+                    WhatsAppService.buildBookedByConfirmationMessage(booking),
+                  );
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go('/admin/bookings');
+            },
+            child: const Text('Go to Bookings List', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1213,9 +1302,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                   controller: _bookedByNameController,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: _inputDecoration(
-                    label: 'Booked By Name',
-                    hint: 'e.g. Travel Desk / John Doe',
-                    icon: Icons.person_outline,
+                    'Booked By Name',
+                    'e.g. Travel Desk / John Doe',
+                    Icons.person_outline,
                   ),
                 ),
               ),
@@ -1229,9 +1318,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                   keyboardType: TextInputType.phone,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: _inputDecoration(
-                    label: 'Booked By Mobile',
-                    hint: 'e.g. 9876543210',
-                    icon: Icons.phone_outlined,
+                    'Booked By Mobile',
+                    'e.g. 9876543210',
+                    Icons.phone_outlined,
                   ),
                 ),
               ),
@@ -1244,9 +1333,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                   controller: _wbsNoController,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: _inputDecoration(
-                    label: 'WBS No.',
-                    hint: 'e.g. WBS-90210',
-                    icon: Icons.tag_outlined,
+                    'WBS No.',
+                    'e.g. WBS-90210',
+                    Icons.tag_outlined,
                   ),
                 ),
               ),
@@ -1257,7 +1346,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     );
   }
 
-  InputDecoration _inputDecoration({required String label, required String hint, required IconData icon}) {
+  InputDecoration _inputDecoration(String label, String hint, IconData icon) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -1269,6 +1358,170 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+    );
+  }
+
+  Widget _buildDynamicPassengersSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1F2E45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header & Count Stepper
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.group_outlined, color: Color(0xFF38BDF8), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Passenger & Route Details',
+                    style: TextStyle(color: Color(0xFF38BDF8), fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Text('Total Passengers: ', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131E2E),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF1F2E45)),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove, size: 16, color: Colors.white70),
+                          onPressed: _passengerCount > 1 ? () => _updatePassengerCount(_passengerCount - 1) : null,
+                        ),
+                        Text(
+                          '$_passengerCount',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add, size: 16, color: Colors.white70),
+                          onPressed: _passengerCount < 10 ? () => _updatePassengerCount(_passengerCount + 1) : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // List of Passenger Cards
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _passengerList.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 14),
+            itemBuilder: (context, index) {
+              final item = _passengerList[index];
+              final isFirst = index == 0;
+
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131E2E),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isFirst ? const Color(0xFF38BDF8).withOpacity(0.4) : const Color(0xFF1F2E45)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Passenger ${index + 1}${isFirst ? " (Primary)" : ""}',
+                          style: TextStyle(
+                            color: isFirst ? const Color(0xFF38BDF8) : Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (!isFirst)
+                          TextButton.icon(
+                            icon: const Icon(Icons.copy_all, size: 14, color: Color(0xFF94A3B8)),
+                            label: const Text('Same Route as Passenger 1', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                            onPressed: () {
+                              item.pickupController.text = _passengerList[0].pickupController.text;
+                              item.dropoffController.text = _passengerList[0].dropoffController.text;
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Name & Contact Phone
+                    _buildResponsiveRow(context, [
+                      TextFormField(
+                        controller: item.nameController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Passenger Name *', 'e.g. John Doe', Icons.person_outline),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: item.phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Contact Mobile *', 'e.g. 9876543210', Icons.phone_outlined),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                    ]),
+                    const SizedBox(height: 10),
+
+                    // Individual Pickup & Dropoff Fields
+                    _buildResponsiveRow(context, [
+                      TextFormField(
+                        controller: item.pickupController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Pickup Location *', 'e.g. Hotel / Terminal', Icons.trip_origin),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: item.dropoffController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Dropoff Location *', 'e.g. Airport / Address', Icons.location_on_outlined),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                    ]),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponsiveRow(BuildContext context, List<Widget> children) {
+    final isMobile = ResponsiveLayout.isMobile(context);
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children
+            .map((child) => Padding(padding: const EdgeInsets.only(bottom: 12), child: child))
+            .toList(),
+      );
+    }
+    return Row(
+      children: children
+          .map((child) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: child)))
+          .toList(),
     );
   }
 }

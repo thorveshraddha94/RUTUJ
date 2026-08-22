@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/booking_repository.dart';
 import '../domain/booking_model.dart';
+import '../domain/passenger_form_item.dart';
+import '../../../core/widgets/responsive_layout.dart';
 
 class EditBookingDialog extends ConsumerStatefulWidget {
   final dynamic booking;
@@ -26,6 +28,25 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
   late TextEditingController _dropoffController;
   late TextEditingController _fareController;
   late TextEditingController _notesController;
+
+  int _passengerCount = 1;
+  List<PassengerFormItem> _passengerList = [PassengerFormItem()];
+
+  void _updatePassengerCount(int count) {
+    if (count == _passengerCount) return;
+    setState(() {
+      _passengerCount = count;
+      while (_passengerList.length < count) {
+        final defaultPickup = _passengerList.isNotEmpty ? _passengerList[0].pickupController.text : '';
+        final defaultDropoff = _passengerList.isNotEmpty ? _passengerList[0].dropoffController.text : '';
+        _passengerList.add(PassengerFormItem(pickup: defaultPickup, dropoff: defaultDropoff));
+      }
+      while (_passengerList.length > count) {
+        final item = _passengerList.removeLast();
+        item.dispose();
+      }
+    });
+  }
 
   DateTime? _selectedDate;
   DateTime? _endDate;
@@ -103,6 +124,24 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     _dropoffController = TextEditingController(text: dropoff);
     _fareController = TextEditingController(text: fare.toString());
     _notesController = TextEditingController(text: notes);
+
+    final rawPassengers = b is Map ? b['passengers'] : (b is BookingModel ? b.passengers : null);
+    if (rawPassengers is List && rawPassengers.isNotEmpty) {
+      _passengerList = rawPassengers
+          .map((p) => PassengerFormItem.fromMap(Map<String, dynamic>.from(p as Map)))
+          .toList();
+      _passengerCount = _passengerList.length;
+    } else {
+      _passengerList = [
+        PassengerFormItem(
+          name: name,
+          phone: phone,
+          pickup: pickup,
+          dropoff: dropoff,
+        ),
+      ];
+      _passengerCount = 1;
+    }
 
     _selectedStatus = _allowedStatuses.contains(statusRaw)
         ? statusRaw
@@ -190,6 +229,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
   @override
   void dispose() {
+    for (final item in _passengerList) {
+      item.dispose();
+    }
     _bookedByNameController.dispose();
     _bookedByPhoneController.dispose();
     _wbsNoController.dispose();
@@ -306,18 +348,35 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
       final bookingId = _getField(widget.booking, ['id']) ?? widget.booking.id;
 
+      final primaryP = _passengerList.isNotEmpty ? _passengerList[0] : PassengerFormItem();
+      final pName = primaryP.nameController.text.trim().isNotEmpty
+          ? primaryP.nameController.text.trim()
+          : _passengerNameController.text.trim();
+      final pPhone = primaryP.phoneController.text.trim().isNotEmpty
+          ? primaryP.phoneController.text.trim()
+          : _passengerPhoneController.text.trim();
+      final pPick = primaryP.pickupController.text.trim().isNotEmpty
+          ? primaryP.pickupController.text.trim()
+          : _pickupController.text.trim();
+      final pDrop = primaryP.dropoffController.text.trim().isNotEmpty
+          ? primaryP.dropoffController.text.trim()
+          : _dropoffController.text.trim();
+
       final updates = <String, dynamic>{
         'booked_by_name': _bookedByNameController.text.trim(),
         'booked_by_phone': _bookedByPhoneController.text.trim(),
         'wbs_no': _wbsNoController.text.trim(),
-        'passenger_name': _passengerNameController.text.trim(),
-        'customer_name': _passengerNameController.text.trim(),
-        'passenger_phone': _passengerPhoneController.text.trim(),
-        'customer_phone': _passengerPhoneController.text.trim(),
-        'pickup_location': _pickupController.text.trim(),
-        'dropoff_location': _dropoffController.text.trim(),
-        'origin': _pickupController.text.trim(),
-        'destination': _dropoffController.text.trim(),
+        'passenger_name': pName,
+        'customer_name': pName,
+        'passenger_phone': pPhone,
+        'customer_phone': pPhone,
+        'pickup_location': pPick,
+        'dropoff_location': pDrop,
+        'origin': pPick,
+        'destination': pDrop,
+        'passengers': _passengerList.map((p) => p.toJson()).toList(),
+        'passenger_count': _passengerCount,
+        'passengers_count': _passengerCount,
         'total_fare': double.tryParse(_fareController.text.trim()) ?? 0.0,
         'amount': double.tryParse(_fareController.text.trim()) ?? 0.0,
         'status': _selectedStatus,
@@ -454,59 +513,8 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                             // 1. Booked By Details
                             _buildBookedBySection(),
 
-                            // 2. Passenger Details
-                            const Text(
-                              '2. Passenger Information',
-                              style: TextStyle(
-                                color: Color(0xFF38BDF8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildTextField(
-                                    'Passenger Name *',
-                                    _passengerNameController,
-                                    Icons.person_outline,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildTextField(
-                                    'Contact Phone *',
-                                    _passengerPhoneController,
-                                    Icons.phone_outlined,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-
-                            // 3. Route
-                            const Text(
-                              '3. Trip Route Details',
-                              style: TextStyle(
-                                color: Color(0xFF38BDF8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildTextField(
-                              'Pickup Address *',
-                              _pickupController,
-                              Icons.trip_origin,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildTextField(
-                              'Dropoff Address *',
-                              _dropoffController,
-                              Icons.location_on_outlined,
-                            ),
-                            const SizedBox(height: 16),
+                            // 2. Dynamic Passenger & Route Details
+                            _buildDynamicPassengersSection(),
 
                             // 4. Schedule & Fare
                             const Text(
@@ -910,9 +918,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                   controller: _bookedByNameController,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: _inputDecoration(
-                    label: 'Booked By Name',
-                    hint: 'e.g. Travel Desk / John Doe',
-                    icon: Icons.person_outline,
+                    'Booked By Name',
+                    'e.g. Travel Desk / John Doe',
+                    Icons.person_outline,
                   ),
                 ),
               ),
@@ -926,9 +934,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                   keyboardType: TextInputType.phone,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: _inputDecoration(
-                    label: 'Booked By Mobile',
-                    hint: 'e.g. 9876543210',
-                    icon: Icons.phone_outlined,
+                    'Booked By Mobile',
+                    'e.g. 9876543210',
+                    Icons.phone_outlined,
                   ),
                 ),
               ),
@@ -941,9 +949,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                   controller: _wbsNoController,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: _inputDecoration(
-                    label: 'WBS No.',
-                    hint: 'e.g. WBS-90210',
-                    icon: Icons.tag_outlined,
+                    'WBS No.',
+                    'e.g. WBS-90210',
+                    Icons.tag_outlined,
                   ),
                 ),
               ),
@@ -954,7 +962,7 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
     );
   }
 
-  InputDecoration _inputDecoration({required String label, required String hint, required IconData icon}) {
+  InputDecoration _inputDecoration(String label, String hint, IconData icon) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -966,6 +974,170 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1F2E45))),
+    );
+  }
+
+  Widget _buildDynamicPassengersSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1F2E45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header & Count Stepper
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.group_outlined, color: Color(0xFF38BDF8), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Passenger & Route Details',
+                    style: TextStyle(color: Color(0xFF38BDF8), fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Text('Total Passengers: ', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131E2E),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF1F2E45)),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove, size: 16, color: Colors.white70),
+                          onPressed: _passengerCount > 1 ? () => _updatePassengerCount(_passengerCount - 1) : null,
+                        ),
+                        Text(
+                          '$_passengerCount',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add, size: 16, color: Colors.white70),
+                          onPressed: _passengerCount < 10 ? () => _updatePassengerCount(_passengerCount + 1) : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // List of Passenger Cards
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _passengerList.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 14),
+            itemBuilder: (context, index) {
+              final item = _passengerList[index];
+              final isFirst = index == 0;
+
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131E2E),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isFirst ? const Color(0xFF38BDF8).withOpacity(0.4) : const Color(0xFF1F2E45)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Passenger ${index + 1}${isFirst ? " (Primary)" : ""}',
+                          style: TextStyle(
+                            color: isFirst ? const Color(0xFF38BDF8) : Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (!isFirst)
+                          TextButton.icon(
+                            icon: const Icon(Icons.copy_all, size: 14, color: Color(0xFF94A3B8)),
+                            label: const Text('Same Route as Passenger 1', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                            onPressed: () {
+                              item.pickupController.text = _passengerList[0].pickupController.text;
+                              item.dropoffController.text = _passengerList[0].dropoffController.text;
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Name & Contact Phone
+                    _buildResponsiveRow(context, [
+                      TextFormField(
+                        controller: item.nameController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Passenger Name *', 'e.g. John Doe', Icons.person_outline),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: item.phoneController,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Contact Mobile *', 'e.g. 9876543210', Icons.phone_outlined),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                    ]),
+                    const SizedBox(height: 10),
+
+                    // Individual Pickup & Dropoff Fields
+                    _buildResponsiveRow(context, [
+                      TextFormField(
+                        controller: item.pickupController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Pickup Location *', 'e.g. Hotel / Terminal', Icons.trip_origin),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: item.dropoffController,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: _inputDecoration('Dropoff Location *', 'e.g. Airport / Address', Icons.location_on_outlined),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                    ]),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponsiveRow(BuildContext context, List<Widget> children) {
+    final isMobile = ResponsiveLayout.isMobile(context);
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children
+            .map((child) => Padding(padding: const EdgeInsets.only(bottom: 12), child: child))
+            .toList(),
+      );
+    }
+    return Row(
+      children: children
+          .map((child) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: child)))
+          .toList(),
     );
   }
 }

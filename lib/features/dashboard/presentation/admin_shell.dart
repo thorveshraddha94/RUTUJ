@@ -312,6 +312,13 @@ class AdminShell extends ConsumerWidget {
             onPressed: () => context.go('/admin/notifications'),
           ),
           IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.danger, size: 20),
+            onPressed: () {
+              ref.read(authProvider.notifier).logout();
+              context.go('/login');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.menu, color: AppColors.primaryText),
             onPressed: () => _showMobileMenuDrawer(context, ref, currentLocation),
           ),
@@ -449,10 +456,10 @@ class AdminShell extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: isActive ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+              color: isActive ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               border: isActive
-                  ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1)
+                  ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1)
                   : null,
             ),
             child: Row(

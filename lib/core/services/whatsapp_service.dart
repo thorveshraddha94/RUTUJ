@@ -30,6 +30,97 @@ class WhatsAppService {
     }
   }
 
+  /// Direct BookingModel Driver Message Builder
+  static String buildDriverMessageFromBooking(BookingModel booking) {
+    final buffer = StringBuffer();
+    buffer.writeln('🚗 *Trip Assignment — ${booking.displayCode}*');
+    buffer.writeln('👥 *Total Passengers:* ${booking.passengersCount}');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+
+    if (booking.passengers != null && booking.passengers!.length > 1) {
+      for (int i = 0; i < booking.passengers!.length; i++) {
+        final p = booking.passengers![i];
+        final name = p['name'] ?? p['passenger_name'] ?? 'Passenger ${i + 1}';
+        final phone = p['phone'] ?? p['passenger_phone'] ?? '';
+        final pick = p['pickup_location'] ?? p['origin'] ?? booking.pickupLocation;
+        final drop = p['dropoff_location'] ?? p['destination'] ?? booking.destination;
+        final phoneStr = phone.toString().isNotEmpty ? ' ($phone)' : '';
+        buffer.writeln('👤 *Passenger ${i + 1}:* $name$phoneStr');
+        buffer.writeln('   📍 *Pickup:* $pick');
+        buffer.writeln('   🏁 *Dropoff:* $drop');
+        buffer.writeln('');
+      }
+    } else {
+      buffer.writeln('👤 *Passenger:* ${booking.passengerName} (${booking.passengerPhone})');
+      buffer.writeln('📍 *Pickup:* ${booking.pickupLocation}');
+      buffer.writeln('🏁 *Dropoff:* ${booking.destination}');
+    }
+
+    final token = booking.tripToken.isNotEmpty ? booking.tripToken : booking.id;
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('📲 *Driver Action Link:*');
+    buffer.writeln('https://travelportl.vercel.app/#/trip/$token');
+    return buffer.toString();
+  }
+
+  /// 3. Booked By / Coordinator WhatsApp Confirmation Message
+  static String buildBookedByConfirmationMessage(BookingModel booking) {
+    final buffer = StringBuffer();
+    buffer.writeln('📋 *Booking Confirmation — ${booking.displayCode}*');
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+
+    if (booking.bookedByName != null && booking.bookedByName!.isNotEmpty) {
+      buffer.writeln('👤 *Booked By:* ${booking.bookedByName}');
+    }
+    if (booking.wbsNo != null && booking.wbsNo!.isNotEmpty) {
+      buffer.writeln('🏷️ *WBS No:* ${booking.wbsNo}');
+    }
+    if (booking.pickupTimeFormatted.isNotEmpty) {
+      buffer.writeln('⏰ *Pickup Date & Time:* ${booking.pickupTimeFormatted}');
+    }
+    if (booking.tripType == 'multi_day' && (booking.durationDays) > 1) {
+      buffer.writeln('📅 *Duration:* ${booking.durationDays} Days Package');
+    }
+
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('👨‍✈️ *Assigned Driver:* ${booking.driverName ?? "Assigned"}');
+    buffer.writeln('📞 *Driver Phone:* ${booking.driverPhone ?? "N/A"}');
+    if (booking.vehicleName != null && booking.vehicleName!.isNotEmpty) {
+      final numStr = (booking.vehicleNumber != null && booking.vehicleNumber!.isNotEmpty) ? ' (${booking.vehicleNumber})' : '';
+      buffer.writeln('🚗 *Vehicle:* ${booking.vehicleName}$numStr');
+    }
+
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('👥 *Passenger Details:*');
+
+    if (booking.passengers != null && booking.passengers!.isNotEmpty) {
+      for (int i = 0; i < booking.passengers!.length; i++) {
+        final p = booking.passengers![i];
+        final name = p['name'] ?? p['passenger_name'] ?? 'Passenger ${i + 1}';
+        final phone = p['phone'] ?? p['passenger_phone'] ?? '';
+        final pick = p['pickup_location'] ?? p['origin'] ?? booking.pickupLocation;
+        final drop = p['dropoff_location'] ?? p['destination'] ?? booking.destination;
+        final phoneStr = phone.toString().isNotEmpty ? ' ($phone)' : '';
+        buffer.writeln('${i + 1}. *$name*$phoneStr');
+        buffer.writeln('   📍 *Pickup:* $pick');
+        buffer.writeln('   🏁 *Dropoff:* $drop');
+      }
+    } else {
+      buffer.writeln('• *${booking.passengerName}* (${booking.passengerPhone})');
+      buffer.writeln('  📍 *Pickup:* ${booking.pickupLocation}');
+      buffer.writeln('  🏁 *Dropoff:* ${booking.destination}');
+    }
+
+    if (booking.totalFare > 0) {
+      buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+      buffer.writeln('💰 *Total Fare:* ₹${booking.totalFare.toStringAsFixed(2)}');
+    }
+
+    buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
+    buffer.writeln('Thank you for booking with us! Let us know if you need any changes.');
+    return buffer.toString();
+  }
+
   /// 1. Driver WhatsApp Message (Includes Trip Portal Link)
   static String buildDriverMessage({
     required String bookingCode,
@@ -41,6 +132,7 @@ class WhatsAppService {
     String? tripToken,
     String? bookingId,
     String? durationInfo,
+    List<Map<String, dynamic>>? passengers,
   }) {
     final token = tripToken ?? bookingId ?? '';
     final tripLink = 'https://travelportl.vercel.app/#/trip/$token';
@@ -48,10 +140,25 @@ class WhatsAppService {
     final buffer = StringBuffer();
     buffer.writeln('🚗 *New Trip Assignment — $bookingCode*');
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
-    buffer.writeln('👤 *Passenger:* $passengerName');
-    buffer.writeln('📞 *Contact:* $passengerPhone');
-    buffer.writeln('📍 *Pickup:* $pickupLocation');
-    buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    if (passengers != null && passengers.length > 1) {
+      buffer.writeln('👥 *Passengers & Route Stops (${passengers.length}):*');
+      for (int i = 0; i < passengers.length; i++) {
+        final p = passengers[i];
+        final name = p['name'] ?? p['passenger_name'] ?? 'Passenger ${i + 1}';
+        final phone = p['phone'] ?? p['passenger_phone'] ?? '';
+        final pick = p['pickup_location'] ?? p['origin'] ?? pickupLocation;
+        final drop = p['dropoff_location'] ?? p['destination'] ?? dropoffLocation;
+        final phoneStr = phone.toString().isNotEmpty ? ' ($phone)' : '';
+        buffer.writeln('${i + 1}️⃣ *$name*$phoneStr');
+        buffer.writeln('   📍 Pick: $pick');
+        buffer.writeln('   🏁 Drop: $drop');
+      }
+    } else {
+      buffer.writeln('👤 *Passenger:* $passengerName');
+      buffer.writeln('📞 *Contact:* $passengerPhone');
+      buffer.writeln('📍 *Pickup:* $pickupLocation');
+      buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    }
     if (pickupTime.isNotEmpty) {
       buffer.writeln('⏰ *Pickup Time:* $pickupTime');
     }
@@ -75,12 +182,25 @@ class WhatsAppService {
     String? vehicleName,
     String? vehicleNumber,
     String? durationInfo,
+    List<Map<String, dynamic>>? passengers,
   }) {
     final buffer = StringBuffer();
     buffer.writeln('🚖 *Your Booking Confirmation — $bookingCode*');
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━');
-    buffer.writeln('📍 *Pickup:* $pickupLocation');
-    buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    if (passengers != null && passengers.length > 1) {
+      buffer.writeln('👥 *Passengers & Route Stops (${passengers.length}):*');
+      for (int i = 0; i < passengers.length; i++) {
+        final p = passengers[i];
+        final name = p['name'] ?? p['passenger_name'] ?? 'Passenger ${i + 1}';
+        final pick = p['pickup_location'] ?? p['origin'] ?? pickupLocation;
+        final drop = p['dropoff_location'] ?? p['destination'] ?? dropoffLocation;
+        buffer.writeln('${i + 1}️⃣ *$name*');
+        buffer.writeln('   📍 Pick: $pick ➔ 🏁 Drop: $drop');
+      }
+    } else {
+      buffer.writeln('📍 *Pickup:* $pickupLocation');
+      buffer.writeln('🏁 *Dropoff:* $dropoffLocation');
+    }
     if (pickupTime.isNotEmpty) {
       buffer.writeln('⏰ *Pickup Time:* $pickupTime');
     }
