@@ -23,18 +23,33 @@ class ClientRepository {
     required String company,
     required String phone,
   }) async {
-    final user = _supabase.auth.currentUser;
-    final profile = await _supabase.from('profiles').select('company_id').eq('id', user!.id).maybeSingle();
-    final companyId = profile?['company_id'];
+    try {
+      final user = _supabase.auth.currentUser;
+      String? companyId;
+      if (user != null) {
+        final profile = await _supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        companyId = profile?['company_id']?.toString();
+      }
 
-    await _supabase.rpc('create_client_user', params: {
-      'client_email': email.trim().toLowerCase(),
-      'client_password': password.trim(),
-      'client_name': name.trim(),
-      'client_company': company.trim(),
-      'client_phone': phone.trim(),
-      'tenant_company_id': companyId,
-    });
+      print('🚀 [ClientRepo] Creating client $email under company $companyId');
+      await _supabase.rpc('create_client_user', params: {
+        'client_email': email.trim().toLowerCase(),
+        'client_password': password.trim(),
+        'client_name': name.trim(),
+        'client_company': company.trim(),
+        'client_phone': phone.trim(),
+        'tenant_company_id': companyId,
+      });
+      print('✅ [ClientRepo] Client created successfully');
+    } catch (e, st) {
+      print('❌ [ClientRepo] Create client error: $e');
+      print(st);
+      rethrow;
+    }
   }
 }
 
