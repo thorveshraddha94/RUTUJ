@@ -10,6 +10,8 @@ import '../../auth/data/auth_repository.dart';
 import '../../bookings/data/booking_repository.dart';
 import '../../bookings/domain/booking_model.dart';
 
+typedef ClientPortalPage = ClientDashboardPage;
+
 class ClientDashboardPage extends ConsumerStatefulWidget {
   const ClientDashboardPage({super.key});
 

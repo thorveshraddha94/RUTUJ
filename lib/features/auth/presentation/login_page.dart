@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../data/auth_repository.dart';
 
@@ -13,28 +14,86 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() async {
-    if (ref.read(authProvider).isLoading) return;
+  Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(authProvider.notifier).login(
-          _usernameController.text.trim(),
-          _passwordController.text,
-        );
+    setState(() => _isLoading = true);
 
-    if (success && mounted) {
-      context.go('/admin/dashboard');
+    try {
+      final email = _emailController.text.trim().toLowerCase();
+      final password = _passwordController.text.trim();
+
+      print('🔑 [Auth] Attempting login for: $email');
+
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw 'Authentication failed. Please check your credentials.';
+      }
+
+      print('✅ [Auth] Logged in user ID: ${user.id}');
+
+      // Fetch user profile to determine role
+      final profileRes = await Supabase.instance.client
+          .from('profiles')
+          .select('role, company_id, username')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      final role = (profileRes?['role'] ?? 'client').toString().toLowerCase();
+      print('👤 [Auth] User role: $role');
+
+      if (!mounted) return;
+
+      if (role == 'client') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome back, ${profileRes?['username'] ?? "Client"}!'),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+        context.go('/client/dashboard');
+      } else {
+        context.go('/admin/dashboard');
+      }
+    } on AuthException catch (e) {
+      print('❌ [Auth] AuthException: ${e.message}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login Failed: ${e.message}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ [Auth] Unexpected error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -181,9 +240,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                   // Email/Username Field
                   TextFormField(
-                    controller: _usernameController,
+                    controller: _emailController,
                     decoration: const InputDecoration(
-                      labelText: 'Admin Username or Email',
+                      labelText: 'Username or Email Address',
                       prefixIcon: Icon(Icons.person_outline, color: AppColors.secondaryText),
                     ),
                     validator: (value) {
@@ -245,8 +304,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                   // Submit Button
                   ElevatedButton(
-                    onPressed: authState.isLoading ? null : _handleLogin,
-                    child: authState.isLoading
+                    onPressed: _isLoading ? null : _handleLogin,
+                    child: _isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -256,7 +315,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                           )
                         : const Text(
-                            'Sign In as Admin',
+                            'Sign In',
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                           ),
                   ),

@@ -127,6 +127,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/client/dashboard',
+        name: 'client-dashboard',
         builder: (context, state) => const ClientDashboardPage(),
       ),
       GoRoute(
