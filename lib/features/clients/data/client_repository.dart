@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/config/supabase_config.dart';
 
 class ClientRepository {
   final SupabaseClient _supabase;
@@ -11,7 +10,6 @@ class ClientRepository {
     try {
       final user = _supabase.auth.currentUser;
       String? companyId;
-
       if (user != null) {
         final profile = await _supabase
             .from('profiles')
@@ -25,11 +23,10 @@ class ClientRepository {
       if (companyId != null && companyId.isNotEmpty) {
         query = query.eq('company_id', companyId);
       }
-
       final res = await query.order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(res as List);
     } catch (e) {
-      if (kDebugMode) print('❌ [ClientRepo] fetchClients error: $e');
+      if (kDebugMode) print('❌ [ClientRepo] Error loading clients: $e');
       return [];
     }
   }
@@ -48,68 +45,33 @@ class ClientRepository {
     final cleanCompany = company.trim();
     final cleanPhone = phone.trim();
 
-    // 1. Get active admin details safely without null checks
-    final adminUser = _supabase.auth.currentUser;
-    if (adminUser == null) {
-      throw 'Active admin session not found. Please log in again.';
-    }
-
+    final currentUser = _supabase.auth.currentUser;
     String? companyId;
-    final adminProfile = await _supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', adminUser.id)
-        .maybeSingle();
-    companyId = adminProfile?['company_id']?.toString();
+    if (currentUser != null) {
+      final profile = await _supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+      companyId = profile?['company_id']?.toString();
+    }
 
     if (kDebugMode) {
-      print('🚀 [ClientRepo] Registering client: $cleanEmail under company:$companyId');
+      print('🚀 [ClientRepo] Calling RPC create_client_user for: $cleanEmail');
     }
 
-    // 2. Create secondary client using global Supabase instance parameters
-    final tempClient = SupabaseClient(
-      SupabaseConfig.supabaseUrl,
-      SupabaseConfig.supabaseAnonKey,
-    );
-
-    // 3. Register user natively with GoTrue
-    final authResponse = await tempClient.auth.signUp(
-      email: cleanEmail,
-      password: cleanPassword,
-      data: {
-        'username': cleanName,
-        'company_name': cleanCompany,
-        'role': 'client',
-        'contact_phone': cleanPhone,
-      },
-    );
-
-    final createdUser = authResponse.user;
-    if (createdUser == null) {
-      throw 'Failed to register client account. Please verify email format or check if the account already exists.';
-    }
-
-    final newUserId = createdUser.id;
-    if (kDebugMode) {
-      print('✅ [ClientRepo] GoTrue user created cleanly. ID: $newUserId');
-    }
-
-    // 4. Save/Upsert profile record using main Admin client
-    await _supabase.from('profiles').upsert({
-      'id': newUserId,
-      'email': cleanEmail,
-      'username': cleanName,
-      'role': 'client',
-      'status': 'approved',
-      'company_id': companyId,
-      'company_name': cleanCompany,
-      'contact_phone': cleanPhone,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+    // Call PostgreSQL RPC function directly
+    final response = await _supabase.rpc('create_client_user', params: {
+      'client_email': cleanEmail,
+      'client_password': cleanPassword,
+      'client_name': cleanName,
+      'client_company': cleanCompany,
+      'client_phone': cleanPhone,
+      'tenant_company_id': companyId,
     });
 
     if (kDebugMode) {
-      print('✅ [ClientRepo] Profile record created successfully for $cleanEmail');
+      print('✅ [ClientRepo] Client created successfully with UID: $response');
     }
 
     if (sendWelcomeEmail) {

@@ -428,7 +428,7 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create client: $e'),
+            content: Text('Error: $e'),
             backgroundColor: Colors.redAccent,
           ),
         );
