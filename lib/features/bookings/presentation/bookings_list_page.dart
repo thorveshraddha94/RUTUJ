@@ -325,27 +325,17 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
               Text('👨‍✈️ Driver: ${b.driverName ?? "Unassigned"} (${b.driverPhone ?? ""})', style: const TextStyle(color: Colors.white70, fontSize: 12)),
               const Divider(color: Color(0xFF1F2E45), height: 20),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text('₹${b.totalFare.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.share, color: Color(0xFF10B981), size: 20),
-                        onPressed: () => _openWhatsAppDispatchDialog(b),
-                        tooltip: 'Share WhatsApp Details',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: Color(0xFF38BDF8), size: 20),
-                        onPressed: () => showDialog(context: context, builder: (_) => EditBookingDialog(booking: b)),
-                        tooltip: 'Edit Booking',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.visibility_outlined, color: Colors.white70, size: 20),
-                        onPressed: () => context.go('/admin/bookings/${b.id}'),
-                        tooltip: 'View Details',
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.share, color: Color(0xFF10B981), size: 20),
+                    tooltip: 'Share via WhatsApp',
+                    onPressed: () => _openWhatsAppDispatchDialog(b),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: Color(0xFF38BDF8), size: 20),
+                    tooltip: 'Edit Booking',
+                    onPressed: () => showDialog(context: context, builder: (_) => EditBookingDialog(booking: b)),
                   ),
                 ],
               ),
@@ -381,143 +371,21 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
                   controller: horizontalScrollController,
                   scrollDirection: Axis.horizontal,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 1300),
+                    constraints: const BoxConstraints(minWidth: 1000),
                     child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(AppColors.secondarySurface),
+                      horizontalMargin: 20,
+                      columnSpacing: 24,
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFF0F172A)),
                       columns: const [
-                        DataColumn(label: Text('Booking ID', style: _headerStyle)),
-                        DataColumn(label: Text('Passenger', style: _headerStyle)),
-                        DataColumn(label: Text('Route (Pickup → Dropoff)', style: _headerStyle)),
-                        DataColumn(label: Text('Pickup Time', style: _headerStyle)),
-                        DataColumn(label: Text('Flight / Terminal', style: _headerStyle)),
-                        DataColumn(label: Text('Assigned Driver', style: _headerStyle)),
-                        DataColumn(label: Text('Vehicle', style: _headerStyle)),
-                        DataColumn(label: Text('Fare / Amount', style: _headerStyle)),
-                        DataColumn(label: Text('Status', style: _headerStyle)),
-                        DataColumn(label: Text('Actions', style: _headerStyle)),
+                        DataColumn(label: Text('Booking Code / Guest', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text('Trip Route', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text('Date & Schedule', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text('Assigned Driver', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text('Vehicle', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text('Status', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text('Actions', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
                       ],
-                      rows: bookings.map((b) {
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              InkWell(
-                                onTap: () => context.go('/admin/bookings/${b.id}'),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    b.displayCode,
-                                    style: const TextStyle(
-                                      color: Color(0xFF60A5FA),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(b.guestName, style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.w600)),
-                                  if (b.guestMobile.isNotEmpty)
-                                    Text(b.guestMobile, style: const TextStyle(color: AppColors.secondaryText, fontSize: 11)),
-                                ],
-                              ),
-                            ),
-                            DataCell(
-                              Container(
-                                constraints: const BoxConstraints(maxWidth: 220),
-                                child: Text(
-                                  '${b.pickupLocation} → ${b.destination}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 12, color: AppColors.primaryText),
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('${b.pickupDate}\n${b.pickupTime}', style: const TextStyle(color: AppColors.primaryText, fontSize: 12)),
-                                  if (b.isMultiDay) ...[
-                                    const SizedBox(height: 2),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: const Color(0xFFF59E0B)),
-                                      ),
-                                      child: Text(
-                                        '${b.durationInDays} DAYS PACKAGE',
-                                        style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 10, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            DataCell(Text(b.flightNumber.isNotEmpty ? '${b.flightNumber} (${b.terminal})' : 'N/A', style: const TextStyle(color: AppColors.primaryText))),
-                            DataCell(Text(b.driverName ?? 'Unassigned', style: TextStyle(color: b.driverName != null ? AppColors.primaryText : AppColors.danger, fontWeight: b.driverName != null ? FontWeight.normal : FontWeight.w600))),
-                            DataCell(Text(b.vehicleType ?? 'Sedan', style: const TextStyle(color: AppColors.primaryText))),
-                            DataCell(Text(b.totalFare > 0 ? '₹${b.totalFare.toStringAsFixed(2)}' : '₹0.00', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold))),
-                            DataCell(StatusBadge(status: b.status.displayName)),
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
-                                    onPressed: () => context.go('/admin/bookings/${b.id}'),
-                                    tooltip: 'View Booking',
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF38BDF8)),
-                                    tooltip: 'Edit Booking',
-                                    onPressed: () async {
-                                      final result = await showDialog<bool>(
-                                        context: context,
-                                        barrierDismissible: true,
-                                        builder: (ctx) => EditBookingDialog(booking: b),
-                                      );
-                                      if (result == true) {
-                                        ref.read(bookingProvider.notifier).fetchBookings();
-                                      }
-                                    },
-                                  ),
-                                  if (b.driverName != null && b.driverMobile != null)
-                                    IconButton(
-                                      icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),
-                                      onPressed: () => _openWhatsAppDispatchDialog(b),
-                                      tooltip: 'Send WhatsApp Details',
-                                    ),
-                                  if (b.status != BookingStatus.cancelled && b.status != BookingStatus.completed) ...[
-                                    IconButton(
-                                      icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.danger),
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => CancelBookingDialog(bookingId: b.id),
-                                        );
-                                      },
-                                      tooltip: 'Cancel Booking',
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                      rows: bookings.map((b) => _buildBookingDataRow(context, ref, b)).toList(),
                     ),
                   ),
                 ),
@@ -529,9 +397,156 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
     );
   }
 
-  static const _headerStyle = TextStyle(
-    color: AppColors.secondaryText,
-    fontWeight: FontWeight.bold,
-    fontSize: 12,
-  );
+  DataRow _buildBookingDataRow(BuildContext context, WidgetRef ref, BookingModel booking) {
+    final bookedBy = (booking.bookedByName ?? '').trim();
+
+    return DataRow(
+      cells: [
+        // 1. Booking Code / Guest
+        DataCell(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: () => context.go('/admin/bookings/${booking.id}'),
+                child: Text(
+                  booking.displayCode,
+                  style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              Text(booking.passengerName, style: const TextStyle(color: Colors.white, fontSize: 12)),
+              if (bookedBy.isNotEmpty)
+                Text('By: $bookedBy', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+            ],
+          ),
+        ),
+
+        // 2. Trip Route
+        DataCell(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '📍 ${booking.pickupLocation}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                '🏁 ${booking.dropoffLocation}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+
+        // 3. Date & Schedule
+        DataCell(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('${booking.pickupDate} at ${booking.pickupTime}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+              if (booking.isMultiDay)
+                Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${booking.durationInDays} Days Package',
+                    style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // 4. Assigned Driver
+        DataCell(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                booking.driverName ?? 'Unassigned',
+                style: TextStyle(
+                  color: booking.driverName != null ? Colors.white : AppColors.danger,
+                  fontSize: 12,
+                  fontWeight: booking.driverName != null ? FontWeight.w500 : FontWeight.bold,
+                ),
+              ),
+              if (booking.driverPhone != null && booking.driverPhone!.isNotEmpty)
+                Text(booking.driverPhone!, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
+            ],
+          ),
+        ),
+
+        // 5. Vehicle
+        DataCell(
+          Text(
+            booking.vehicleName != null && booking.vehicleName!.isNotEmpty
+                ? '${booking.vehicleName} (${booking.vehicleNumber ?? ""})'
+                : (booking.vehicleType ?? 'Sedan'),
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+          ),
+        ),
+
+        // 6. Status
+        DataCell(StatusBadge(status: booking.status.displayName)),
+
+        // 7. Actions (Edit, WhatsApp, Delete/Cancel)
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
+                onPressed: () => context.go('/admin/bookings/${booking.id}'),
+                tooltip: 'View Booking',
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF38BDF8)),
+                tooltip: 'Edit Booking',
+                onPressed: () async {
+                  final result = await showDialog<bool>(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (ctx) => EditBookingDialog(booking: booking),
+                  );
+                  if (result == true) {
+                    ref.read(bookingProvider.notifier).fetchBookings();
+                  }
+                },
+              ),
+              if (booking.driverName != null && booking.driverPhone != null)
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.success),
+                  onPressed: () => _openWhatsAppDispatchDialog(booking),
+                  tooltip: 'Send WhatsApp Details',
+                ),
+              if (booking.status != BookingStatus.cancelled && booking.status != BookingStatus.completed) ...[
+                IconButton(
+                  icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.danger),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => CancelBookingDialog(bookingId: booking.id),
+                    );
+                  },
+                  tooltip: 'Cancel Booking',
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
