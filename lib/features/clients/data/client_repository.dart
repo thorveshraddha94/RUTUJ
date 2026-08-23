@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/config/supabase_config.dart';
 
 class ClientRepository {
   final SupabaseClient _supabase;
@@ -7,11 +8,20 @@ class ClientRepository {
 
   Future<List<Map<String, dynamic>>> fetchClients() async {
     final user = _supabase.auth.currentUser;
-    final profile = await _supabase.from('profiles').select('company_id').eq('id', user!.id).maybeSingle();
-    final companyId = profile?['company_id'];
+    String? companyId;
+    if (user != null) {
+      final profile = await _supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .maybeSingle();
+      companyId = profile?['company_id']?.toString();
+    }
 
     var query = _supabase.from('profiles').select('*').eq('role', 'client');
-    if (companyId != null) query = query.eq('company_id', companyId);
+    if (companyId != null && companyId.isNotEmpty) {
+      query = query.eq('company_id', companyId);
+    }
     final res = await query.order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(res as List);
   }
@@ -25,28 +35,62 @@ class ClientRepository {
     bool sendWelcomeEmail = true,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
+    final cleanPassword = password.trim();
 
     try {
-      final user = _supabase.auth.currentUser;
+      // 1. Get current Admin tenant company_id from primary client
+      final adminUser = _supabase.auth.currentUser;
       String? companyId;
-      if (user != null) {
-        final profile = await _supabase
+      if (adminUser != null) {
+        final adminProfile = await _supabase
             .from('profiles')
             .select('company_id')
-            .eq('id', user.id)
+            .eq('id', adminUser.id)
             .maybeSingle();
-        companyId = profile?['company_id']?.toString();
+        companyId = adminProfile?['company_id']?.toString();
       }
 
-      print('🚀 [ClientRepo] Creating client $cleanEmail');
-      await _supabase.rpc('create_client_user', params: {
-        'client_email': cleanEmail,
-        'client_password': password.trim(),
-        'client_name': name.trim(),
-        'client_company': company.trim(),
-        'client_phone': phone.trim(),
-        'tenant_company_id': companyId,
+      print('🚀 [ClientRepo] Registering new client natively: $cleanEmail');
+
+      // 2. Create an isolated SupabaseClient to preserve the active Admin session
+      final tempClient = SupabaseClient(
+        SupabaseConfig.supabaseUrl,
+        SupabaseConfig.supabaseAnonKey,
+      );
+
+      // 3. Register user natively through GoTrue Auth Engine
+      final authResponse = await tempClient.auth.signUp(
+        email: cleanEmail,
+        password: cleanPassword,
+        data: {
+          'username': name.trim(),
+          'company_name': company.trim(),
+          'role': 'client',
+          'contact_phone': phone.trim(),
+        },
+      );
+
+      final newUserId = authResponse.user?.id;
+      if (newUserId == null) {
+        throw 'Failed to generate user ID from authentication engine.';
+      }
+
+      print('✅ [ClientRepo] GoTrue user created with ID: $newUserId');
+
+      // 4. Save profile record via main Admin client
+      await _supabase.from('profiles').upsert({
+        'id': newUserId,
+        'email': cleanEmail,
+        'username': name.trim(),
+        'role': 'client',
+        'status': 'approved',
+        'company_id': companyId,
+        'company_name': company.trim(),
+        'contact_phone': phone.trim(),
+        'updated_at': DateTime.now().toIso8601String(),
       });
+
+      print('✅ [ClientRepo] Profile linked successfully for client $cleanEmail');
 
       if (sendWelcomeEmail) {
         try {
@@ -60,7 +104,7 @@ class ClientRepository {
         }
       }
     } catch (e, st) {
-      print('❌ [ClientRepo] Create client error: $e');
+      print('❌ [ClientRepo] Error creating client: $e');
       print(st);
       rethrow;
     }
