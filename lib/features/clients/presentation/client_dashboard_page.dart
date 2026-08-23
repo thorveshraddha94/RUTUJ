@@ -55,7 +55,7 @@ class _ClientDashboardPageState extends ConsumerState<ClientDashboardPage> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                color: const Color(0xFF0284C7).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.local_airport, color: Color(0xFF38BDF8), size: 20),
@@ -392,8 +392,9 @@ class _ClientDashboardPageState extends ConsumerState<ClientDashboardPage> {
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          );
+        },
         ),
       );
   }

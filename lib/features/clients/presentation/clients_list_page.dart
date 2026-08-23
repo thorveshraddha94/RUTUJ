@@ -215,9 +215,9 @@ class _ClientsListPageState extends ConsumerState<ClientsListPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                      color: const Color(0xFF0284C7).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                      border: Border.all(color: const Color(0xFF0284C7).withOpacity(0.4)),
                     ),
                     child: const Text(
                       'CLIENT',
@@ -320,7 +320,7 @@ class _ClientsListPageState extends ConsumerState<ClientsListPage> {
                                 children: [
                                   CircleAvatar(
                                     radius: 14,
-                                    backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                                    backgroundColor: const Color(0xFF0284C7).withOpacity(0.2),
                                     child: Text(
                                       name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'C',
                                       style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.bold),
@@ -344,9 +344,9 @@ class _ClientsListPageState extends ConsumerState<ClientsListPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                  color: const Color(0xFF0284C7).withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                                  border: Border.all(color: const Color(0xFF0284C7).withOpacity(0.4)),
                                 ),
                                 child: const Text(
                                   'CLIENT',
@@ -364,8 +364,9 @@ class _ClientsListPageState extends ConsumerState<ClientsListPage> {
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          );
+        },
         ),
       );
   }
@@ -476,9 +477,9 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.15),
+                    color: Colors.red.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                    border: Border.all(color: Colors.red.withOpacity(0.4)),
                   ),
                   child: Row(
                     children: [

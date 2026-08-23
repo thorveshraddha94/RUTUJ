@@ -91,6 +91,7 @@ class _ClientRequestBookingPageState extends ConsumerState<ClientRequestBookingP
       final user = supabase.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
+      final authState = ref.read(authProvider);
       final profileRes = await supabase
           .from('profiles')
           .select('name, username, company_name, contact_phone, phone, company_id, role')
@@ -177,7 +178,7 @@ class _ClientRequestBookingPageState extends ConsumerState<ClientRequestBookingP
         child: SingleChildScrollView(
           padding: EdgeInsets.all(isMobile ? 14.0 : 28.0),
           child: Container(
-            maxWidth: 620,
+            constraints: const BoxConstraints(maxWidth: 620),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -194,7 +195,7 @@ class _ClientRequestBookingPageState extends ConsumerState<ClientRequestBookingP
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                          color: const Color(0xFF0284C7).withOpacity(0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.add_location_alt_outlined, color: Color(0xFF38BDF8), size: 24),
@@ -223,9 +224,9 @@ class _ClientRequestBookingPageState extends ConsumerState<ClientRequestBookingP
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.15),
+                        color: Colors.red.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                        border: Border.all(color: Colors.red.withOpacity(0.4)),
                       ),
                       child: Row(
                         children: [
