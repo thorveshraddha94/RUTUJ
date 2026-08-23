@@ -35,8 +35,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text.trim();
 
-      print('🔑 [Auth] Attempting login for: $email');
-
+      // 1. Sign in with password
       final response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
@@ -44,50 +43,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
       final user = response.user;
       if (user == null) {
-        throw 'Authentication failed. Please check your credentials.';
+        throw 'Authentication returned empty user record.';
       }
 
-      print('✅ [Auth] Logged in user ID: ${user.id}');
-
-      // Fetch user profile to determine role
-      final profileRes = await Supabase.instance.client
+      // 2. Fetch role from profiles
+      final profile = await Supabase.instance.client
           .from('profiles')
           .select('role, company_id, username')
           .eq('id', user.id)
           .maybeSingle();
 
-      final role = (profileRes?['role'] ?? 'client').toString().toLowerCase();
-      print('👤 [Auth] User role: $role');
+      final role = (profile?['role'] ?? 'client').toString().toLowerCase();
 
       if (!mounted) return;
 
       if (role == 'client') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Welcome back, ${profileRes?['username'] ?? "Client"}!'),
-            backgroundColor: const Color(0xFF10B981),
-          ),
-        );
         context.go('/client/dashboard');
       } else {
         context.go('/admin/dashboard');
       }
     } on AuthException catch (e) {
-      print('❌ [Auth] AuthException: ${e.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Login Failed: ${e.message}'),
+            content: Text('Login failed: ${e.message}'),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
     } catch (e) {
-      print('❌ [Auth] Unexpected error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Login failed: $e'),
             backgroundColor: Colors.redAccent,
           ),
         );

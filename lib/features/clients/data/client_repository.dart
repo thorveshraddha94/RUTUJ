@@ -35,7 +35,7 @@ class ClientRepository {
         companyId = profile?['company_id']?.toString();
       }
 
-      print('🚀 [ClientRepo] Creating client $email under company $companyId');
+      print('🚀 [ClientRepo] Calling create_client_user for: $email');
       await _supabase.rpc('create_client_user', params: {
         'client_email': email.trim().toLowerCase(),
         'client_password': password.trim(),
@@ -44,9 +44,9 @@ class ClientRepository {
         'client_phone': phone.trim(),
         'tenant_company_id': companyId,
       });
-      print('✅ [ClientRepo] Client created successfully');
+      print('✅ [ClientRepo] Successfully registered client account');
     } catch (e, st) {
-      print('❌ [ClientRepo] Create client error: $e');
+      print('❌ [ClientRepo] Error creating client: $e');
       print(st);
       rethrow;
     }
