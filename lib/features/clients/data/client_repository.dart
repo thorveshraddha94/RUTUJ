@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/supabase_config.dart';
@@ -7,23 +8,30 @@ class ClientRepository {
   ClientRepository(this._supabase);
 
   Future<List<Map<String, dynamic>>> fetchClients() async {
-    final user = _supabase.auth.currentUser;
-    String? companyId;
-    if (user != null) {
-      final profile = await _supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', user.id)
-          .maybeSingle();
-      companyId = profile?['company_id']?.toString();
-    }
+    try {
+      final user = _supabase.auth.currentUser;
+      String? companyId;
 
-    var query = _supabase.from('profiles').select('*').eq('role', 'client');
-    if (companyId != null && companyId.isNotEmpty) {
-      query = query.eq('company_id', companyId);
+      if (user != null) {
+        final profile = await _supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        companyId = profile?['company_id']?.toString();
+      }
+
+      var query = _supabase.from('profiles').select('*').eq('role', 'client');
+      if (companyId != null && companyId.isNotEmpty) {
+        query = query.eq('company_id', companyId);
+      }
+
+      final res = await query.order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(res as List);
+    } catch (e) {
+      if (kDebugMode) print('❌ [ClientRepo] fetchClients error: $e');
+      return [];
     }
-    final res = await query.order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(res as List);
   }
 
   Future<void> createClient({
@@ -36,77 +44,88 @@ class ClientRepository {
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanPassword = password.trim();
+    final cleanName = name.trim();
+    final cleanCompany = company.trim();
+    final cleanPhone = phone.trim();
 
-    try {
-      // 1. Get current Admin tenant company_id from primary client
-      final adminUser = _supabase.auth.currentUser;
-      String? companyId;
-      if (adminUser != null) {
-        final adminProfile = await _supabase
-            .from('profiles')
-            .select('company_id')
-            .eq('id', adminUser.id)
-            .maybeSingle();
-        companyId = adminProfile?['company_id']?.toString();
-      }
+    // 1. Get active admin details safely without null checks
+    final adminUser = _supabase.auth.currentUser;
+    if (adminUser == null) {
+      throw 'Active admin session not found. Please log in again.';
+    }
 
-      print('🚀 [ClientRepo] Registering new client natively: $cleanEmail');
+    String? companyId;
+    final adminProfile = await _supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', adminUser.id)
+        .maybeSingle();
+    companyId = adminProfile?['company_id']?.toString();
 
-      // 2. Create an isolated SupabaseClient to preserve the active Admin session
-      final tempClient = SupabaseClient(
-        SupabaseConfig.supabaseUrl,
-        SupabaseConfig.supabaseAnonKey,
-      );
+    if (kDebugMode) {
+      print('🚀 [ClientRepo] Registering client: $cleanEmail under company:$companyId');
+    }
 
-      // 3. Register user natively through GoTrue Auth Engine
-      final authResponse = await tempClient.auth.signUp(
-        email: cleanEmail,
-        password: cleanPassword,
-        data: {
-          'username': name.trim(),
-          'company_name': company.trim(),
-          'role': 'client',
-          'contact_phone': phone.trim(),
-        },
-      );
+    // 2. Create secondary client using global Supabase instance parameters
+    final tempClient = SupabaseClient(
+      SupabaseConfig.supabaseUrl,
+      SupabaseConfig.supabaseAnonKey,
+    );
 
-      final newUserId = authResponse.user?.id;
-      if (newUserId == null) {
-        throw 'Failed to generate user ID from authentication engine.';
-      }
-
-      print('✅ [ClientRepo] GoTrue user created with ID: $newUserId');
-
-      // 4. Save profile record via main Admin client
-      await _supabase.from('profiles').upsert({
-        'id': newUserId,
-        'email': cleanEmail,
-        'username': name.trim(),
+    // 3. Register user natively with GoTrue
+    final authResponse = await tempClient.auth.signUp(
+      email: cleanEmail,
+      password: cleanPassword,
+      data: {
+        'username': cleanName,
+        'company_name': cleanCompany,
         'role': 'client',
-        'status': 'approved',
-        'company_id': companyId,
-        'company_name': company.trim(),
-        'contact_phone': phone.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+        'contact_phone': cleanPhone,
+      },
+    );
 
-      print('✅ [ClientRepo] Profile linked successfully for client $cleanEmail');
+    final createdUser = authResponse.user;
+    if (createdUser == null) {
+      throw 'Failed to register client account. Please verify email format or check if the account already exists.';
+    }
 
-      if (sendWelcomeEmail) {
-        try {
-          await _supabase.auth.resetPasswordForEmail(
-            cleanEmail,
-            redirectTo: 'https://travelportl.vercel.app/#/login',
-          );
+    final newUserId = createdUser.id;
+    if (kDebugMode) {
+      print('✅ [ClientRepo] GoTrue user created cleanly. ID: $newUserId');
+    }
+
+    // 4. Save/Upsert profile record using main Admin client
+    await _supabase.from('profiles').upsert({
+      'id': newUserId,
+      'email': cleanEmail,
+      'username': cleanName,
+      'role': 'client',
+      'status': 'approved',
+      'company_id': companyId,
+      'company_name': cleanCompany,
+      'contact_phone': cleanPhone,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+
+    if (kDebugMode) {
+      print('✅ [ClientRepo] Profile record created successfully for $cleanEmail');
+    }
+
+    if (sendWelcomeEmail) {
+      try {
+        await _supabase.auth.resetPasswordForEmail(
+          cleanEmail,
+          redirectTo: 'https://travelportl.vercel.app/#/login',
+        );
+        if (kDebugMode) {
           print('📧 [ClientRepo] Welcome / setup email dispatched to $cleanEmail');
-        } catch (emailErr) {
+        }
+      } catch (emailErr) {
+        if (kDebugMode) {
           print('⚠️ [ClientRepo] Email delivery note: $emailErr');
         }
       }
-    } catch (e, st) {
-      print('❌ [ClientRepo] Error creating client: $e');
-      print(st);
-      rethrow;
     }
   }
 }

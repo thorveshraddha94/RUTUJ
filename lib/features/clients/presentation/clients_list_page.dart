@@ -387,7 +387,7 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  bool _isSubmitting = false;
+  bool _isSaving = false;
   bool _sendWelcomeEmail = true;
   String? _errorMessage;
 
@@ -401,40 +401,40 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
+  Future<void> _submitClientForm() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _isSaving = true);
 
-    final success = await ref.read(clientProvider.notifier).createClient(
-          name: _nameController.text,
-          email: _emailController.text,
-          password: _passwordController.text,
-          company: _companyController.text,
-          phone: _phoneController.text,
-          sendWelcomeEmail: _sendWelcomeEmail,
-        );
+    try {
+      await ref.read(clientRepositoryProvider).createClient(
+            name: _nameController.text,
+            company: _companyController.text,
+            email: _emailController.text,
+            password: _passwordController.text,
+            phone: _phoneController.text,
+            sendWelcomeEmail: _sendWelcomeEmail,
+          );
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      if (success) {
-        Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _sendWelcomeEmail
-                  ? 'Client account created! Welcome setup email sent.'
-                  : 'Client account created successfully!',
-            ),
-            backgroundColor: const Color(0xFF10B981),
+          const SnackBar(
+            content: Text('Client account created successfully!'),
+            backgroundColor: Color(0xFF10B981),
           ),
         );
-      } else {
-        final err = ref.read(clientProvider).errorMessage ?? 'Failed to create client';
-        setState(() => _errorMessage = err);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create client: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -608,13 +608,13 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _submit,
+                    onPressed: _isSaving ? null : _submitClientForm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0284C7),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: _isSubmitting
+                    icon: _isSaving
                         ? const SizedBox(
                             width: 16,
                             height: 16,
@@ -622,7 +622,7 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
                           )
                         : const Icon(Icons.check, size: 18, color: Colors.white),
                     label: Text(
-                      _isSubmitting ? 'Creating...' : 'Register Client',
+                      _isSaving ? 'Creating...' : 'Register Client',
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
