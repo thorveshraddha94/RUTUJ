@@ -35,7 +35,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text.trim();
 
-      // 1. Sign in with password
       final response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
@@ -43,17 +42,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
       final user = response.user;
       if (user == null) {
-        throw 'Authentication returned empty user record.';
+        throw 'Invalid login credentials.';
       }
 
-      // 2. Fetch role from profiles
+      // Fetch user profile to determine role
       final profile = await Supabase.instance.client
           .from('profiles')
           .select('role, company_id, username')
           .eq('id', user.id)
           .maybeSingle();
 
-      final role = (profile?['role'] ?? 'client').toString().toLowerCase();
+      final role = (profile?['role'] ?? user.userMetadata?['role'] ?? 'client')
+          .toString()
+          .toLowerCase();
 
       if (!mounted) return;
 

@@ -50224,13 +50224,14 @@ s=7
 return A.q(c.gdN().Bd(l,k),$async$tL)
 case 7:j=a1
 i=j.b
-if(i==null)throw A.f("Authentication returned empty user record.")
+if(i==null)throw A.f("Invalid login credentials.")
 s=8
 return A.q(d.b.cE("profiles").f0("role, company_id, username").fp("id",i.a).kR(),$async$tL)
 case 8:h=a1
 d=h
 d=d==null?null:J.bW(d,"role")
-g=J.a_(d==null?"client":d).toLowerCase()
+if(d==null){d=i.c
+d=d==null?null:d.h(0,"role")}g=J.a_(d==null?"client":d).toLowerCase()
 if(m.c==null){n=[1]
 s=5
 break}d=J.c(g,"client")
