@@ -75,8 +75,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 2. Determine Role
       final isSuperadmin = rawRole == 'superadmin' ||
           user.email?.toLowerCase().trim() == 'parthgajjar.bk@gmail.com';
+      final isClient = rawRole == 'client';
 
-      final role = isSuperadmin ? UserRole.superadmin : UserRole.admin;
+      final role = isSuperadmin
+          ? UserRole.superadmin
+          : (isClient ? UserRole.client : UserRole.admin);
 
       // 3. Determine Status (Support both 'approved' and 'active')
       UserStatus status;

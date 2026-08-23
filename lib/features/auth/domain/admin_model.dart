@@ -1,4 +1,4 @@
-enum UserRole { admin, driver, superadmin }
+enum UserRole { admin, driver, superadmin, client }
 enum UserStatus { pending, approved, suspended }
 
 class AdminModel {
@@ -20,14 +20,17 @@ class AdminModel {
 
   bool get isAdmin => role == UserRole.admin || role == UserRole.superadmin;
   bool get isSuperAdmin => role == UserRole.superadmin || email.toLowerCase().trim() == 'parthgajjar.bk@gmail.com';
+  bool get isClient => role == UserRole.client;
 
   factory AdminModel.fromJson(Map<String, dynamic> json) {
     final roleStr = (json['role'] as String? ?? '').toLowerCase().trim();
     final userRole = roleStr == 'superadmin'
         ? UserRole.superadmin
-        : roleStr == 'admin'
-            ? UserRole.admin
-            : UserRole.driver;
+        : roleStr == 'client'
+            ? UserRole.client
+            : roleStr == 'admin'
+                ? UserRole.admin
+                : UserRole.driver;
 
     final statusStr = (json['status'] as String? ?? '').toLowerCase().trim();
     final userStatus = (statusStr == 'pending')
@@ -53,9 +56,11 @@ class AdminModel {
         'username': username,
         'role': role == UserRole.superadmin
             ? 'SUPERADMIN'
-            : role == UserRole.admin
-                ? 'ADMIN'
-                : 'DRIVER',
+            : role == UserRole.client
+                ? 'CLIENT'
+                : role == UserRole.admin
+                    ? 'ADMIN'
+                    : 'DRIVER',
         'status': status.name,
       };
 }

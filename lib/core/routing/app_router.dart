@@ -13,6 +13,9 @@ import '../../features/bookings/presentation/create_booking_page.dart';
 import '../../features/bookings/presentation/booking_details_page.dart';
 import '../../features/drivers/presentation/drivers_page.dart';
 import '../../features/drivers/presentation/add_driver_page.dart';
+import '../../features/clients/presentation/clients_list_page.dart';
+import '../../features/clients/presentation/client_dashboard_page.dart';
+import '../../features/clients/presentation/client_request_booking_page.dart';
 import '../../features/notifications/presentation/notifications_page.dart';
 import '../../features/history/presentation/history_page.dart';
 import '../../features/reports/presentation/reports_page.dart';
@@ -53,6 +56,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // 2. Not logged in -> Redirect to login page
       if (!isLoggedIn) {
         return isLoginRoute ? null : '/login';
+      }
+
+      // Check if logged-in user is Client role
+      final isClientRole = authState.role == UserRole.client || (authState.user?.isClient ?? false);
+      if (isClientRole) {
+        if (isLoginRoute || !path.startsWith('/client')) {
+          return '/client/dashboard';
+        }
+        return null;
+      }
+
+      // If non-client tries to access client portal
+      if (path.startsWith('/client')) {
+        return '/admin/dashboard';
       }
 
       // 3. Check for Superadmin role
@@ -107,6 +124,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pending-approval',
         builder: (context, state) => const PendingApprovalPage(),
+      ),
+      GoRoute(
+        path: '/client/dashboard',
+        builder: (context, state) => const ClientDashboardPage(),
+      ),
+      GoRoute(
+        path: '/client/request-booking',
+        builder: (context, state) => const ClientRequestBookingPage(),
       ),
       GoRoute(
         path: '/trip/:token',
@@ -164,6 +189,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/drivers/:id',
             builder: (context, state) => const DriversPage(),
+          ),
+          GoRoute(
+            path: '/admin/clients',
+            builder: (context, state) => const ClientsListPage(),
           ),
           GoRoute(
             path: '/admin/notifications',

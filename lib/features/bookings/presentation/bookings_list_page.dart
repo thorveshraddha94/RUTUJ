@@ -506,6 +506,31 @@ class _BookingsListPageState extends ConsumerState<BookingsListPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (booking.status == BookingStatus.newRequest || booking.driverName == null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final result = await showDialog<bool>(
+                        context: context,
+                        barrierDismissible: true,
+                        builder: (ctx) => EditBookingDialog(booking: booking),
+                      );
+                      if (result == true) {
+                        ref.read(bookingProvider.notifier).fetchBookings();
+                      }
+                    },
+                    icon: const Icon(Icons.person_add_alt_1_outlined, size: 14),
+                    label: const Text('Assign Driver', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0284C7),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
               IconButton(
                 icon: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primary),
                 onPressed: () => context.go('/admin/bookings/${booking.id}'),

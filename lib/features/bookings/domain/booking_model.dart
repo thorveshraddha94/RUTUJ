@@ -2,6 +2,7 @@ import 'timeline_event_model.dart';
 
 enum BookingStatus {
   pending,
+  newRequest,
   assigned,
   confirmed,
   onTheWayToPickup,
@@ -17,6 +18,8 @@ extension BookingStatusX on BookingStatus {
     switch (this) {
       case BookingStatus.pending:
         return 'Pending';
+      case BookingStatus.newRequest:
+        return 'NEW REQUEST';
       case BookingStatus.assigned:
         return 'Assigned';
       case BookingStatus.confirmed:
@@ -523,7 +526,12 @@ class BookingModel {
       };
 
   static BookingStatus _statusFromString(String str) {
-    switch (str.toLowerCase()) {
+    switch (str.toLowerCase().trim()) {
+      case 'new_request':
+      case 'newrequest':
+      case 'new request':
+      case 'new':
+        return BookingStatus.newRequest;
       case 'assigned':
         return BookingStatus.assigned;
       case 'confirmed':

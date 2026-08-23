@@ -130,6 +130,14 @@ class AdminShell extends ConsumerWidget {
                     ),
                     _sidebarItem(
                       context,
+                      icon: Icons.business_center_outlined,
+                      activeIcon: Icons.business_center,
+                      label: 'Clients',
+                      route: '/admin/clients',
+                      currentRoute: currentLocation,
+                    ),
+                    _sidebarItem(
+                      context,
                       icon: Icons.notifications_outlined,
                       activeIcon: Icons.notifications,
                       label: 'Notifications',
@@ -394,6 +402,14 @@ class AdminShell extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                leading: const Icon(Icons.business_center, color: AppColors.primary),
+                title: const Text('Clients', style: TextStyle(color: AppColors.primaryText)),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.go('/admin/clients');
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.history, color: AppColors.primary),
                 title: const Text('History', style: TextStyle(color: AppColors.primaryText)),
                 onTap: () {
@@ -509,6 +525,7 @@ class AdminShell extends ConsumerWidget {
     if (route.contains('/bookings/create')) return 'Create Booking';
     if (route.contains('/bookings')) return 'Bookings';
     if (route.contains('/drivers')) return 'Drivers & Fleet';
+    if (route.contains('/clients')) return 'Clients';
     if (route.contains('/notifications')) return 'Notifications';
     if (route.contains('/history')) return 'History';
     if (route.contains('/reports')) return 'Reports';

@@ -12,6 +12,26 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normStatus = status.toLowerCase().trim();
+    if (normStatus == 'new_request' || normStatus == 'new request' || normStatus == 'new') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF06B6D4).withOpacity(0.2),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFF06B6D4)),
+        ),
+        child: const Text(
+          'NEW REQUEST',
+          style: TextStyle(
+            color: Color(0xFF22D3EE),
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
     final color = _getColor(status);
 
     return Container(
@@ -53,7 +73,11 @@ class StatusBadge extends StatelessWidget {
   }
 
   Color _getColor(String status) {
-    switch (status.toLowerCase()) {
+    switch (status.toLowerCase().trim()) {
+      case 'new request':
+      case 'new_request':
+      case 'new':
+        return const Color(0xFF06B6D4); // Cyan badge for New Request
       case 'completed':
       case 'confirmed':
       case 'active':

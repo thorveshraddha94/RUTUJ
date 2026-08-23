@@ -64,7 +64,9 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
 
   final List<String> _allowedStatuses = [
     'pending',
+    'new_request',
     'assigned',
+    'confirmed',
     'in_progress',
     'completed',
     'cancelled',
@@ -295,7 +297,10 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
   void _onDriverChanged(String? driverId) {
     setState(() {
       _selectedDriverId = driverId;
-      if (driverId != null) {
+      if (driverId != null && driverId.isNotEmpty) {
+        if (_selectedStatus == 'new_request' || _selectedStatus == 'pending') {
+          _selectedStatus = 'assigned';
+        }
         final matchedDriver = _drivers.firstWhere(
           (d) => d['id'].toString() == driverId,
           orElse: () => {},
@@ -661,6 +666,15 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                     ),
                                     items: const [
                                       DropdownMenuItem(
+                                        value: 'new_request',
+                                        child: Text(
+                                          'New Request',
+                                          style: TextStyle(
+                                            color: Color(0xFF06B6D4),
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
                                         value: 'pending',
                                         child: Text(
                                           'Pending',
@@ -675,6 +689,15 @@ class _EditBookingDialogState extends ConsumerState<EditBookingDialog> {
                                           'Assigned',
                                           style: TextStyle(
                                             color: Colors.amberAccent,
+                                          ),
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'confirmed',
+                                        child: Text(
+                                          'Confirmed',
+                                          style: TextStyle(
+                                            color: Color(0xFF32C48D),
                                           ),
                                         ),
                                       ),
