@@ -388,6 +388,7 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
   final _phoneController = TextEditingController();
 
   bool _isSubmitting = false;
+  bool _sendWelcomeEmail = true;
   String? _errorMessage;
 
   @override
@@ -413,6 +414,7 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
           password: _passwordController.text,
           company: _companyController.text,
           phone: _phoneController.text,
+          sendWelcomeEmail: _sendWelcomeEmail,
         );
 
     if (mounted) {
@@ -420,9 +422,13 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
       if (success) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Client account created successfully!'),
-            backgroundColor: Color(0xFF10B981),
+          SnackBar(
+            content: Text(
+              _sendWelcomeEmail
+                  ? 'Client account created! Welcome setup email sent.'
+                  : 'Client account created successfully!',
+            ),
+            backgroundColor: const Color(0xFF10B981),
           ),
         );
       } else {
@@ -561,6 +567,32 @@ class _AddClientModalState extends ConsumerState<_AddClientModal> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+
+              // Send Welcome Email Toggle
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF1F2E45)),
+                ),
+                child: SwitchListTile(
+                  title: const Text(
+                    'Send Confirmation / Welcome Email',
+                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text(
+                    'Sends portal setup link to client\'s email address',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                  ),
+                  value: _sendWelcomeEmail,
+                  activeThumbColor: const Color(0xFF38BDF8),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) => setState(() => _sendWelcomeEmail = val),
+                ),
               ),
               const SizedBox(height: 20),
               const Divider(color: Color(0xFF1F2E45)),

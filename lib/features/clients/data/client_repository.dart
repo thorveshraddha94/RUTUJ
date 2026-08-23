@@ -22,7 +22,10 @@ class ClientRepository {
     required String password,
     required String company,
     required String phone,
+    bool sendWelcomeEmail = true,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+
     try {
       final user = _supabase.auth.currentUser;
       String? companyId;
@@ -35,18 +38,29 @@ class ClientRepository {
         companyId = profile?['company_id']?.toString();
       }
 
-      print('🚀 [ClientRepo] Calling create_client_user for: $email');
+      print('🚀 [ClientRepo] Creating client $cleanEmail');
       await _supabase.rpc('create_client_user', params: {
-        'client_email': email.trim().toLowerCase(),
+        'client_email': cleanEmail,
         'client_password': password.trim(),
         'client_name': name.trim(),
         'client_company': company.trim(),
         'client_phone': phone.trim(),
         'tenant_company_id': companyId,
       });
-      print('✅ [ClientRepo] Successfully registered client account');
+
+      if (sendWelcomeEmail) {
+        try {
+          await _supabase.auth.resetPasswordForEmail(
+            cleanEmail,
+            redirectTo: 'https://travelportl.vercel.app/#/login',
+          );
+          print('📧 [ClientRepo] Welcome / setup email dispatched to $cleanEmail');
+        } catch (emailErr) {
+          print('⚠️ [ClientRepo] Email delivery note: $emailErr');
+        }
+      }
     } catch (e, st) {
-      print('❌ [ClientRepo] Error creating client: $e');
+      print('❌ [ClientRepo] Create client error: $e');
       print(st);
       rethrow;
     }
@@ -120,6 +134,7 @@ class ClientNotifier extends StateNotifier<ClientState> {
     required String password,
     required String company,
     required String phone,
+    bool sendWelcomeEmail = true,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -129,6 +144,7 @@ class ClientNotifier extends StateNotifier<ClientState> {
         password: password,
         company: company,
         phone: phone,
+        sendWelcomeEmail: sendWelcomeEmail,
       );
       await loadClients();
       return true;
